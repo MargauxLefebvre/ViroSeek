@@ -18,16 +18,16 @@ knitr::opts_chunk$set(echo = TRUE, eval=F,
 conda activate ViroSeek
 
 # Set the variables
-SampleID=TBNGS-214
-FASTQDIR=/shared/projects/virus_coinfect_m/fastq
-SPADESDIR=/shared/home/marglefebvre/softwares/SPAdes-4.0.0-Linux/bin
-DBDIAMOND=/shared/projects/virus_coinfect_m/diamond_db/ncbi-nr.taxonomy.dmnd
-TAXONKITDIR=/shared/projects/virus_coinfect_m/diamond_db/Taxonkit
-PROTACCESION=/shared/projects/virus_coinfect_m/diamond_db/prot.accession2taxid.txt
-SILVAREF=/shared/projects/virus_coinfect_m/SILVA/SILVA.DB.fasta
+SampleID=sample_ID
+FASTQDIR=/path/to/fastq/directory
+SPADESDIR=/path/to/SPades/bin
+DBDIAMOND=path/to/ncbi-nr.taxonomy.dmnd
+TAXONKITDIR=/path/to/Taxonkit/files
+PROTACCESION=/path/to/prot.accession2taxid.txt # this file must be dezipped
+SILVAREF=/path/to/SILVA/fasta
 
-TEMPDIR=/shared/projects/virus_coinfect_m/temp_$SampleID
-RESULTDIR=/shared/projects/virus_coinfect_m/test_taxo_$SampleID
+TEMPDIR=./temp_$SampleID
+RESULTDIR=./results/taxo_$SampleID
 
 # Create the TEMPDIR and RESULTDIR
 mkdir -p $TEMPDIR
@@ -182,15 +182,11 @@ echo "--> Clean the taxonomy table for $SampleID"
 
 # Finalize the pipeline and clean the intermediate files
 ```{bash}
-# Check the QC with Multiqc
-cp $TEMPDIR/Bam/${SampleID}_contigs_reads.tsv $TEMPDIR/fastQC/reads_counts.idx.stats
-cd $TEMPDIR/fastQC/
-multiqc .
-
 # Get the final files
+cp -r $TEMPDIR/Bam/${SampleID}_contigs_reads.tsv $RESULTDIR
 cp -r $TEMPDIR/fastQC/ $RESULTDIR
 cp -r $TEMPDIR/Taxo/${SampleID}_taxonomy_viral.txt $RESULTDIR
-
+cp -r $TEMPDIR/assembly_spades $RESULTDIR
 # Delete intermediate files
 #rm -rf $TEMPDIR
 ```

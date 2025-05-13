@@ -1,11 +1,13 @@
 ViroSeek
 ================
 Margaux Lefebvre and Audric Berger
-2025-05-12
+2025-05-13
 
 # Install the software for the pipeline
 
-Install all the tools, with the yml file…
+Install all the tools, with the [yml
+file](https://github.com/MargauxLefebvre/ViroSeek/blob/main/ViroSeek_env.yml)…
+(easiest and adviced option)
 
 ``` bash
 conda env create -f ViroSeek_env.yml
@@ -22,12 +24,13 @@ conda install taxonkit=0.9.0 -c bioconda
 conda install diamond=2.1.10 -c bioconda
 conda install trim-galore=0.6.10 -c bioconda
 conda install bbmap=39.18 -c bioconda
+conda install seqtk=1.4 -c bioconda
 ```
 
 *Note: python v3.8 is the minimum version for Spades.*
 
 Most of the tools can be installed with conda but we need the binaries
-for [Spades
+for [SPAdes
 v4.0.0](https://github.com/ablab/spades/releases/tag/v4.0.0).
 
 # Versions and manual for each software
@@ -38,13 +41,14 @@ v4.0.0](https://github.com/ablab/spades/releases/tag/v4.0.0).
   v0.6.10](https://github.com/FelixKrueger/TrimGalore?tab=readme-ov-file)
 - [BBmap v39.18 (for BBduk and
   BBnorm)](https://archive.jgi.doe.gov/data-and-tools/software-tools/bbtools/bb-tools-user-guide/)
-- [Spades v4.0.0](https://github.com/ablab/spades)
+- [SPAdes v4.0.0](https://github.com/ablab/spades)
 - [Minimap2 v2.29](https://github.com/lh3/minimap2)
 - [Diamond v2.1.10](https://github.com/bbuchfink/diamond)
 - [Taxonkit v0.9.0](https://bioinf.shenwei.me/taxonkit/)
 - [Samtools v1.21](http://www.htslib.org/doc/1.21/samtools.html)
+- [Seqtk v1.4](https://github.com/lh3/seqtk)
 
-# Generate the database
+# Generate the databases
 
 *TO DO*
 

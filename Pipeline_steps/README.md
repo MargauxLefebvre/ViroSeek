@@ -1,22 +1,25 @@
 Steps of the pipeline
 ================
 Margaux Lefebvre and Audric Berger
-2025-05-12
+2025-05-13
 
-# Set up directories
+# Set up directories and environment
 
 ``` bash
-# Set the variables
-SAMPLEID=
-FASTQDIR=
-SPADESDIR=
-DBDIAMOND=
-PROTACCESION=
-SILVAREF=
-TAXONKITDIR=
+# Activate the environment
+conda activate ViroSeek
 
-TEMPDIR=./temp_$SAMPLEID
-RESULTDIR=./taxo_$SAMPLEID
+# Set the variables
+SampleID=sample_ID
+FASTQDIR=/path/to/fastq/directory
+SPADESDIR=/path/to/SPades/bin
+DBDIAMOND=path/to/ncbi-nr.taxonomy.dmnd
+TAXONKITDIR=/path/to/Taxonkit/files
+PROTACCESION=/path/to/prot.accession2taxid.txt # this file must be dezipped
+SILVAREF=/path/to/SILVA/fasta
+
+TEMPDIR=./temp_$SampleID
+RESULTDIR=./results/taxo_$SampleID
 
 # Create the TEMPDIR and RESULTDIR
 mkdir -p $TEMPDIR
@@ -49,7 +52,7 @@ $FASTQDIR/${SampleID}_R1.fastq.gz \
 $FASTQDIR/${SampleID}_R2.fastq.gz
 
 # FastQC to check trimming effect
-zcat $FASTQDIR/${SampleID}_R1.fastq.gz $FASTQDIR/${SampleID}_R2.fastq.gz | fastqc stdin:${SampleID}.trim --outdir=$TEMPDIR/fastQC
+zcat $TEMPDIR/trimgalore_fastq/${SampleID}_R1_val_1.fq.gz $TEMPDIR/trimgalore_fastq/${SampleID}_R2_val_2.fq.gz | fastqc stdin:${SampleID}.trim --outdir=$TEMPDIR/fastQC
 ```
 
 ## BBduk and BBnorm
@@ -62,14 +65,14 @@ mkdir $TEMPDIR/BBduk
 
 bbduk.sh \
     -Xmx34g \
-    in1=$TEMPDIR/trimgalore_fastq/${SampleID}_R1.fastq.gz \
-    in2=$TEMPDIR/trimgalore_fastq/${SampleID}_R2.fastq.gz  \
-    out1=$TEMPDIR/BBduk/${SampleID}_R1.fastq.gz out2=$TEMPDIR/BBduk/${SampleID}_R1.fastq.gz \
+    in1=$TEMPDIR/trimgalore_fastq/${SampleID}_R1_val_1.fq.gz \
+    in2=$TEMPDIR/trimgalore_fastq/${SampleID}_R2_val_2.fq.gz  \
+    out1=$TEMPDIR/BBduk/${SampleID}_R1_rmrdna.fastq.gz out2=$TEMPDIR/BBduk/${SampleID}_R2_rmrdna.fastq.gz \
     threads=6 \
     ref=$SILVAREF
 
 # FastQC to check BBduk effect
-zcat $FASTQDIR/${SampleID}_R1.fastq.gz $FASTQDIR/${SampleID}_R2.fastq.gz | fastqc stdin:${SampleID}.BBduk --outdir=$TEMPDIR/fastQC
+zcat $TEMPDIR/BBduk/${SampleID}_R1_rmrdna.fastq.gz $TEMPDIR/BBduk/${SampleID}_R2_rmrdna.fastq.gz | fastqc stdin:${SampleID}.BBduk --outdir=$TEMPDIR/fastQC
 ```
 
 Normalization of the reads count.
@@ -78,24 +81,19 @@ Normalization of the reads count.
 echo "--> BBnorm for $SampleID"
 mkdir $TEMPDIR/BBnorm
 
-# Read 1
-bbnorm.sh \
-    in=$TEMPDIR/BBduk/${SampleID}_R1.fastq.gz \
-    out=$TEMPDIR/BBnorm/${SampleID}_R1.fastq.gz \
-    target=100 min=5 \
-    threads=6 \
-    -Xmx34g 
+# Merge paired-end FASTQ files into a single interleaved FASTQ file.
+seqtk mergepe $TEMPDIR/BBduk/${SampleID}_R1_rmrdna.fastq.gz $TEMPDIR/BBduk/${SampleID}_R2_rmrdna.fastq.gz | bgzip > $TEMPDIR/BBduk/${SampleID}_inter_rmrdna.fastq.gz
 
-# Read 2
+# Normalize
 bbnorm.sh \
-    in=$TEMPDIR/BBduk/${SampleID}_R2.fastq.gz \
-    out=$TEMPDIR/BBnorm/${SampleID}_R2.fastq.gz \
+    in=$TEMPDIR/BBduk/${SampleID}_inter_rmrdna.fastq.gz \
+    out=$TEMPDIR/BBnorm/${SampleID}_inter_norm.fastq.gz \
     target=100 min=5 \
     threads=6 \
     -Xmx34g 
 
 # FastQC to check BBnorm effect
-zcat $FASTQDIR/${SampleID}_R1.fastq.gz $FASTQDIR/${SampleID}_R2.fastq.gz | fastqc stdin:${SampleID}.BBnorm --outdir=$TEMPDIR/fastQC
+zcat $TEMPDIR/BBnorm/${SampleID}_inter_norm.fastq.gz | fastqc stdin:${SampleID}.BBnorm --outdir=$TEMPDIR/fastQC
 ```
 
 *Digital normalization is applied solely for the assembly step, while
@@ -107,9 +105,8 @@ the complete set of sequences is retained for quantification.*
 echo "--> Spades for $SampleID"
 
 mkdir $TEMPDIR/assembly_spades
-spades.py --rnaviral \
-    -1 $TEMPDIR/BBnorm/${SampleID}_R1.fastq.gz \
-    -2 $TEMPDIR/BBnorm/${SampleID}_R2.fastq.gz \
+$SPADESDIR/spades.py --rnaviral \
+    --12 $TEMPDIR/BBnorm/${SampleID}_inter_norm.fastq.gz \
     --threads 12 \
     --memory 72 \
     -o $TEMPDIR/assembly_spades
@@ -121,19 +118,16 @@ spades.py --rnaviral \
 echo "--> Minimap for $SampleID"
 mkdir $TEMPDIR/Bam
 
-minimap2 -t 16 -a $TEMPDIR/assembly_spades/spades.contigs.fa.gz \
-        $TEMPDIR/BBduk/${SampleID}_R1.fastq.gz \
-        $TEMPDIR/BBduk/${SampleID}_R1.fastq.gz \
+minimap2 -t 16 -a $TEMPDIR/assembly_spades/contigs.fasta \
+        $TEMPDIR/BBduk/${SampleID}_R1_rmrdna.fastq.gz \
+        $TEMPDIR/BBduk/${SampleID}_R2_rmrdna.fastq.gz \
         | samtools view -@ 16 -S -b - > $TEMPDIR/Bam/${SampleID}_map.bam
 
 echo "--> Quantify reads count for $SampleID"
 
 samtools sort -@ 16 $TEMPDIR/Bam/${SampleID}_map.bam -o $TEMPDIR/Bam/${SampleID}_sorted.bam
-
 samtools markdup -@ 16 -r $TEMPDIR/Bam/${SampleID}_sorted.bam $TEMPDIR/Bam/${SampleID}_dedup.bam
-
 samtools index $TEMPDIR/Bam/${SampleID}_dedup.bam
-
 samtools idxstats $TEMPDIR/Bam/${SampleID}_dedup.bam > $TEMPDIR/Bam/${SampleID}_contigs_reads.tsv
 ```
 
@@ -143,7 +137,7 @@ samtools idxstats $TEMPDIR/Bam/${SampleID}_dedup.bam > $TEMPDIR/Bam/${SampleID}_
 echo "--> Diamond for $SampleID"
 mkdir $TEMPDIR/Taxo
 
-diamond blastx -p 16 -d $DBDIAMOND -q $TEMPDIR/assembly_spades/spades.contigs.fa.gz \
+diamond blastx -p 16 -d $DBDIAMOND -q $TEMPDIR/assembly_spades/contigs.fasta \
         -o $TEMPDIR/Taxo/${SampleID}.tsv --max-target-seqs 1
 
 # Retrieve the accession IDs column from the Diamond file
@@ -176,4 +170,20 @@ echo "--> Clean the taxonomy table for $SampleID"
 
 # Filter to keep only lines containing “virus”.
     grep -i "virus" "$TEMPDIR/Taxo/${SampleID}_final_assembly.txt" > "$TEMPDIR/Taxo/${SampleID}_filter_viral_taxonomy.txt"
+
+# Keep only reads count and the taxonomy in a tab delimited file
+  awk '{printf "%s\t", $4; for (i=17; i<=NF; i++) printf "%s%s", $i, (i<NF?" ":"\n")}' "$TEMPDIR/Taxo/${SampleID}_filter_viral_taxonomy.txt" > "$TEMPDIR/Taxo/${SampleID}_taxonomy_viral.txt"
+ sed -i 's/;/\t/g' "$TEMPDIR/Taxo/${SampleID}_taxonomy_viral.txt"
+```
+
+# Finalize the pipeline and clean the intermediate files
+
+``` bash
+# Get the final files
+cp -r $TEMPDIR/Bam/${SampleID}_contigs_reads.tsv $RESULTDIR
+cp -r $TEMPDIR/fastQC/ $RESULTDIR
+cp -r $TEMPDIR/Taxo/${SampleID}_taxonomy_viral.txt $RESULTDIR
+cp -r $TEMPDIR/assembly_spades $RESULTDIR
+# Delete intermediate files
+#rm -rf $TEMPDIR
 ```
