@@ -63,7 +63,7 @@ $FASTQDIR/${SampleID}_R2.fastq.gz
 zcat $TEMPDIR/trimgalore_fastq/${SampleID}_R1_val_1.fq.gz $TEMPDIR/trimgalore_fastq/${SampleID}_R2_val_2.fq.gz | fastqc stdin:${SampleID}.trim --outdir=$TEMPDIR/fastQC
 ```
 
-## BBduk and BBnorm
+## BBduk 
 
 Remove ribosomal DNA
 ```{bash}
@@ -160,7 +160,7 @@ echo "--> Clean the taxonomy table for $SampleID"
    uniq "$TEMPDIR/Taxo/${SampleID}_virus_taxonomy.txt" > "$TEMPDIR/Taxo/${SampleID}_filter_viral_taxonomy.txt"
 
 # Keep only reads count and the taxonomy in a tab delimited file
-  awk '{printf "%s\t", $4; for (i=17; i<=NF; i++) printf "%s%s", $i, (i<NF?" ":"\n")}' "$TEMPDIR/Taxo/${SampleID}_filter_viral_taxonomy.txt" > "$TEMPDIR/Taxo/${SampleID}_taxonomy_viral.txt"
+  awk '{printf "%s\t", $5; for (i=17; i<=NF; i++) printf "%s%s", $i, (i<NF?" ":"\n")}' "$TEMPDIR/Taxo/${SampleID}_filter_viral_taxonomy.txt" > "$TEMPDIR/Taxo/${SampleID}_taxonomy_viral.txt"
  sed -i 's/;/\t/g' "$TEMPDIR/Taxo/${SampleID}_taxonomy_viral.txt"
 ```
 
