@@ -82,35 +82,18 @@ bbduk.sh \
 zcat $TEMPDIR/BBduk/${SampleID}_R1_rmrdna.fastq.gz $TEMPDIR/BBduk/${SampleID}_R2_rmrdna.fastq.gz | fastqc stdin:${SampleID}.BBduk --outdir=$TEMPDIR/fastQC
 ```
 
-Normalization of the reads count.
-```{bash}
-echo "--> BBnorm for $SampleID"
-mkdir $TEMPDIR/BBnorm
-
-# Merge paired-end FASTQ files into a single interleaved FASTQ file.
-seqtk mergepe $TEMPDIR/BBduk/${SampleID}_R1_rmrdna.fastq.gz $TEMPDIR/BBduk/${SampleID}_R2_rmrdna.fastq.gz | bgzip > $TEMPDIR/BBduk/${SampleID}_inter_rmrdna.fastq.gz
-
-# Normalize
-bbnorm.sh \
-    in=$TEMPDIR/BBduk/${SampleID}_inter_rmrdna.fastq.gz \
-    out=$TEMPDIR/BBnorm/${SampleID}_inter_norm.fastq.gz \
-    target=100 min=5 \
-    threads=6 \
-    -Xmx34g 
-
-# FastQC to check BBnorm effect
-zcat $TEMPDIR/BBnorm/${SampleID}_inter_norm.fastq.gz | fastqc stdin:${SampleID}.BBnorm --outdir=$TEMPDIR/fastQC
-```
-*Digital normalization is applied solely for the assembly step, while the complete set of sequences is retained for quantification.*
-
 # Create the assembly
 
 ```{bash}
 echo "--> Spades for $SampleID"
 
+# Merge paired-end FASTQ files into a single interleaved FASTQ file.
+seqtk mergepe $TEMPDIR/BBduk/${SampleID}_R1_rmrdna.fastq.gz $TEMPDIR/BBduk/${SampleID}_R2_rmrdna.fastq.gz | bgzip > $TEMPDIR/BBduk/${SampleID}_inter_rmrdna.fastq.gz
+
+# Make the assembly
 mkdir $TEMPDIR/assembly_spades
 $SPADESDIR/spades.py --rnaviral \
-    --12 $TEMPDIR/BBnorm/${SampleID}_inter_norm.fastq.gz \
+    --12 $TEMPDIR/BBduk/${SampleID}_inter_rmrdna.fastq.gz \
     --threads 12 \
     --memory 72 \
     -o $TEMPDIR/assembly_spades
@@ -173,7 +156,8 @@ echo "--> Clean the taxonomy table for $SampleID"
     join -1 16 -2 1 <(sort -k16,16 "$TEMPDIR/Taxo/${SampleID}_contig_reads_accession_taxid.txt") <(sort -k1,1 "$TEMPDIR/Taxo/${SampleID}_taxonomy_table.txt") > "$TEMPDIR/Taxo/${SampleID}_final_assembly.txt"
 
 # Filter to keep only lines containing “virus”.
-    grep -i "virus" "$TEMPDIR/Taxo/${SampleID}_final_assembly.txt" > "$TEMPDIR/Taxo/${SampleID}_filter_viral_taxonomy.txt"
+   grep -i "virus" "$TEMPDIR/Taxo/${SampleID}_final_assembly.txt" > "$TEMPDIR/Taxo/${SampleID}_virus_taxonomy.txt"
+   uniq "$TEMPDIR/Taxo/${SampleID}_virus_taxonomy.txt" > "$TEMPDIR/Taxo/${SampleID}_filter_viral_taxonomy.txt"
 
 # Keep only reads count and the taxonomy in a tab delimited file
   awk '{printf "%s\t", $4; for (i=17; i<=NF; i++) printf "%s%s", $i, (i<NF?" ":"\n")}' "$TEMPDIR/Taxo/${SampleID}_filter_viral_taxonomy.txt" > "$TEMPDIR/Taxo/${SampleID}_taxonomy_viral.txt"
@@ -185,8 +169,9 @@ echo "--> Clean the taxonomy table for $SampleID"
 # Get the final files
 cp -r $TEMPDIR/Bam/${SampleID}_contigs_reads.tsv $RESULTDIR
 cp -r $TEMPDIR/fastQC/ $RESULTDIR
-cp -r $TEMPDIR/Taxo/${SampleID}_taxonomy_viral.txt $RESULTDIR
+cp -r $TEMPDIR/Taxo/${SampleID}_taxonomy_viral.txt $RESULTDIR/${SampleID}_taxonomy_viral.clean.txt
 cp -r $TEMPDIR/assembly_spades $RESULTDIR
+cp -r $TEMPDIR/Taxo/${SampleID}_filter_viral_taxonomy.txt $RESULTDIR/${SampleID}_all_viral_taxonomy.txt
 # Delete intermediate files
 #rm -rf $TEMPDIR
 ```
