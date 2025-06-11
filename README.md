@@ -1,7 +1,7 @@
 ViroSeek
 ================
 Margaux Lefebvre and Audric Berger
-2025-05-13
+2025-06-11
 
 # Install the software for the pipeline
 
@@ -48,9 +48,75 @@ v4.0.0](https://github.com/ablab/spades/releases/tag/v4.0.0).
 - [Samtools v1.21](http://www.htslib.org/doc/1.21/samtools.html)
 - [Seqtk v1.4](https://github.com/lh3/seqtk)
 
-# Generate the databases
+# Generate the references databases
 
-*TO DO*
+## SILVA
+
+Reads corresponding to ribosomal DNA sequences are filtered out using
+reference data from the [SILVA database](https://www.arb-silva.de/).
+This pipeline was developed and tested using the latest available
+release at the time (version 138.2).
+
+Below, we explain how to create the SILVA reference database used for
+this filtering.
+
+``` bash
+# Download the references database
+wget -c https://www.arb-silva.de/fileadmin/silva_databases/release_138_2/ARB_files/SILVA_138.2_SSURef_NR99_03_07_24_opt.arb.gz
+wget -c https://www.arb-silva.de/fileadmin/silva_databases/release_138_2/ARB_files/SILVA_138.2_LSURef_NR99_03_07_24_opt.arb.gz
+# Merge the database together
+zcat SILVA_138.2*.gz > SILVA.fasta
+```
+
+## Diamond and Taxonkit
+
+Taxonomic assignment requires a reference database built with DIAMOND
+along with corresponding taxonomy mapping files.
+
+Below, we provide instructions for generating the DIAMOND database and
+preparing the necessary files used by TaxonKit to enable taxonomy
+assignment.
+
+``` bash
+conda activate ViroSeek # to have the same Diamond version than the one used in the pipeline
+
+# Fetch the non-redundant (NR) protein database in FASTA format from NCBI.
+wget ftp://ftp.ncbi.nih.gov/blast/db/FASTA/nr.gz
+ 
+# Download and untar the taxonomy dump (essential for linking protein sequences to taxonomic information with Taxonkit).
+wget ftp://ftp.ncbi.nlm.nih.gov/pub/taxonomy/taxdump.tar.gz
+tar xfz taxdump.tar.gz
+ 
+# Download the accession-to-taxonomy mapping (this file maps protein accession numbers to NCBI Taxonomy IDs).
+wget ftp://ftp.ncbi.nih.gov/pub/taxonomy/accession2taxid/prot.accession2taxid.FULL.gz
+ 
+# Create a DIAMOND database with taxonomy mapping
+gunzip -c nr.gz | sed '/^>/s/ .*//' | diamond makedb --threads 16 \
+  --taxonmap prot.accession2taxid.FULL.gz \
+  --taxonnames names.dmp \
+  --taxonnodes nodes.dmp \
+  --db ncbi-nr.taxonomy.dmnd #name of the output DIAMOND database
+  
+# Make the directory for Taxonkit and transfert the accession-to-taxonomy mapping files
+mkdir $TAXONKITDIR
+mv *.dmp $TAXONKITDIR
+
+# Decompress the prot.accession2taxid.FULL.gz file
+gzip -d prot.accession2taxid.FULL.gz
+```
+
+**Note:**
+
+When building the DIAMOND database in June 2025, we encountered a
+compatibility issue between the NCBI taxonomy files and DIAMOND (see
+[issue \#352](https://github.com/bbuchfink/diamond/issues/352)).
+Specifically, the NCBI taxonomy (nodes.dmp) included taxonomic ranks
+such as domain and realm, which were not recognized by DIAMOND. To
+resolve this, we replaced these terms before creating the database:
+`sed -i 's/domain/superkingdom/g' nodes.dmp` and
+`sed -i 's/realm/kingdom/g' nodes.dmp`. These replacements ensure
+compatibility with DIAMOND expected taxonomy rank names during database
+creation.
 
 # How to run it
 
