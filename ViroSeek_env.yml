@@ -10,10 +10,11 @@ dependencies:
   - annotated-types=0.7.0=pyhd8ed1ab_0
   - attrs=24.2.0=pyh71513ae_0
   - bbmap=39.18=he5f24ec_0
+  - bioawk=1.0=h577a1d6_13
   - brotli-python=1.1.0=py38h17151c0_1
   - bzip2=1.0.8=h4bc722e_7
   - c-ares=1.34.5=hb9d3cd8_0
-  - ca-certificates=2025.4.26=hbd8a1cb_0
+  - ca-certificates=2025.6.15=hbd8a1cb_0
   - cairo=1.18.4=h3394656_0
   - certifi=2024.8.30=pyhd8ed1ab_0
   - cffi=1.17.0=py38heb5c249_0
