@@ -1,7 +1,7 @@
 ViroSeek
 ================
 Margaux Lefebvre and Audric Berger
-2025-06-11
+2025-07-01
 
 # Install the software for the pipeline
 
@@ -18,13 +18,15 @@ conda env create -f ViroSeek_env.yml
 ``` bash
 conda create -n ViroSeek python=3.8
 conda activate ViroSeek
-conda install minimap2=2.29 -c bioconda
+
 conda install samtools=1.21 -c bioconda
-conda install taxonkit=0.9.0 -c bioconda
-conda install diamond=2.1.10 -c bioconda
+conda install minimap2=2.29 -c bioconda
 conda install trim-galore=0.6.10 -c bioconda
 conda install bbmap=39.18 -c bioconda
-conda install seqtk=1.4 -c bioconda
+conda install bioawk=1.0 -c bioconda
+conda install taxonkit=0.9.0 -c bioconda
+conda install diamond=2.1.10 -c bioconda
+mamba install seqtk=1.4 -c bioconda
 ```
 
 *Note: python v3.8 is the minimum version for Spades.*
@@ -39,14 +41,15 @@ v4.0.0](https://github.com/ablab/spades/releases/tag/v4.0.0).
   v0.12.1](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/)
 - [Trim-galore
   v0.6.10](https://github.com/FelixKrueger/TrimGalore?tab=readme-ov-file)
-- [BBmap v39.18 (for BBduk and
-  BBnorm)](https://archive.jgi.doe.gov/data-and-tools/software-tools/bbtools/bb-tools-user-guide/)
+- [BBmap v39.18 (for
+  BBduk)](https://archive.jgi.doe.gov/data-and-tools/software-tools/bbtools/bb-tools-user-guide/)
 - [SPAdes v4.0.0](https://github.com/ablab/spades)
 - [Minimap2 v2.29](https://github.com/lh3/minimap2)
 - [Diamond v2.1.10](https://github.com/bbuchfink/diamond)
 - [Taxonkit v0.9.0](https://bioinf.shenwei.me/taxonkit/)
 - [Samtools v1.21](http://www.htslib.org/doc/1.21/samtools.html)
 - [Seqtk v1.4](https://github.com/lh3/seqtk)
+- [bioawk v1.0](https://github.com/vsbuffalo/bioawk-tutorial)
 
 # Generate the references databases
 
@@ -120,4 +123,118 @@ creation.
 
 # How to run it
 
-*TO DO*
+## Using the Bash script only
+
+You can run the pipeline directly with the bash script `ViroSeek.sh`
+(located in this directory). Feel free to modify or adapt it to fit your
+needs.
+
+### Script variables
+
+| Variable | Description |
+|----|----|
+| `SampleID` | Name of the sample being analyzed. |
+| `FASTQDIR` | Path to the folder containing paired-end FASTQ files. Files must be named `${SampleID}_R1.fastq.gz` and `${SampleID}_R2.fastq.gz` for full compatibility with the script. |
+| `TEMPDIR` | Path to a temporary directory where intermediate files are stored during analysis. This directory is usually deleted after the run. |
+| `RESULTDIR` | Path where final output results will be saved. |
+| `SILVAREF` | Path to the **SILVA rRNA reference FASTA** used for ribosomal RNA read filtering with BBduk. ([More on SILVA setup](https://github.com/MargauxLefebvre/ViroSeek#silva)) |
+| `DBDIAMOND` | Path to the **DIAMOND-formatted protein database** used for taxonomic assignment. ([More on DIAMOND setup](https://github.com/MargauxLefebvre/ViroSeek#diamond-and-taxonkit)) |
+| `PROTACCESION` | Path to the **`prot.accession2taxid.txt`** file from NCBI (uncompressed), mapping protein accessions to taxonomy IDs. ([More on DIAMOND setup](https://github.com/MargauxLefebvre/ViroSeek#diamond-and-taxonkit)) |
+| `TAXONKITDIR` | Directory containing **NCBI taxonomy dump files** (`names.dmp`, `nodes.dmp`, etc.) used by TaxonKit. ([More on DIAMOND setup](https://github.com/MargauxLefebvre/ViroSeek#diamond-and-taxonkit)) |
+| `SPADESDIR` | Path to the **SPAdes binary folder**, which must include `spades.py`. ([Installation guide](https://github.com/MargauxLefebvre/ViroSeek#install-the-software-for-the-pipeline)) |
+| `LENGTH_SEQ` | Minimum contig length (bp) to keep after SPAdes assembly. Use `0` to **keep all contigs** without length filtering. |
+| `DIAM_EVALUE` | Maximum **e-value** threshold for DIAMOND alignments. Lower values increase stringency. |
+| `DIAM_ID` | Minimum **percent identity** for DIAMOND hits (range 0–100). |
+| `DIAM_QUERYCOV` | Minimum **query coverage** percentage required for DIAMOND hits. |
+
+### How to run
+
+Simply execute the script with:
+
+``` bash
+bash ViroSeek.sh
+```
+
+For a detailed step-by-step explanation of each part of the pipeline,
+look at the
+[documentation](https://github.com/MargauxLefebvre/ViroSeek/tree/main/Pipeline_steps).
+
+## Using the workflow manager (Nextflow)
+
+**Requirements:**
+
+- Nextflow: workflow manager to run the pipeline.
+- Conda: for managing software environments.
+- ViroSeek.nf: the main Nextflow pipeline script included in this
+  repository.
+- nextflow.config: Configuration file that defines compute profiles
+  (e.g., SLURM, SGE) and pipeline parameters, also included in this
+  repository.
+
+### Parameters
+
+#### Mandatory parameters
+
+| Parameter | Description |
+|----|----|
+| `--input` | Path to a **CSV file** (no header) with 3 columns: `sample_id, read1.fastq.gz, read2.fastq.gz`. Each row represents a paired-end sample. |
+| `--silvaref` | Path to the **SILVA ribosomal DNA reference** FASTA file used for rRNA read filtration with BBduk. ([SILVA setup](https://github.com/MargauxLefebvre/ViroSeek#silva)) |
+| `--diamond_db` | Path to the **DIAMOND-formatted database** for protein sequence taxonomic assignment. ([DIAMOND setup](https://github.com/MargauxLefebvre/ViroSeek#diamond-and-taxonkit)) |
+| `--protaccession` | Path to **`prot.accession2taxid.txt`** (uncompressed) from NCBI, used to map accession numbers to Taxonomy IDs. ([DIAMOND setup](https://github.com/MargauxLefebvre/ViroSeek#diamond-and-taxonkit)) |
+| `--taxon_dir` | Path to a directory containing **NCBI taxonomy dump files** (`names.dmp`, `nodes.dmp`, etc.) used by TaxonKit. ([DIAMOND setup](https://github.com/MargauxLefebvre/ViroSeek#diamond-and-taxonkit)) |
+| `--spadesbin` | Path to the **SPAdes binary folder**, which must contain `spades.py`. ([Installation guide](https://github.com/MargauxLefebvre/ViroSeek#install-the-software-for-the-pipeline)) |
+
+#### Optional parameters
+
+| Parameter | Default value | Description |
+|----|----|----|
+| `--work_dir` | `./work` | Directory for Nextflow’s temporary working files. |
+| `--results_dir` | `./results` | Directory where output results are saved. |
+| `--length_seq` | `0` | Minimum length (in bp) to keep contigs after SPAdes assembly. Use `0` to **keep all** contigs without filtering. |
+| `--diam_evalue` | `0.001` | Maximum **e-value** for DIAMOND alignment hits. Lower values increase stringency. |
+| `--diam_id` | `0` | Minimum **percent identity** required for DIAMOND hits (0–100). |
+| `--diam_querycov` | `0` | Minimum **query coverage** percentage required for DIAMOND hits. |
+
+**Note:** it is also possible to specify which configuration file to use
+with the `-c' option '/path/to/the/nextflow.config'`.
+
+### How to use it
+
+Here’s an example command:
+
+``` bash
+nextflow run ViroSeek.nf --input '/path/to/samples.csv' -profile conda_env,slurm \
+  --work_dir '/your/work_dir/' \
+  --results_dir '/your/results_dir/' \
+  --silvaref '/path/to/SILVA/fasta/SILVA.DB.fasta' \
+  --diamond_db '/path/to/ncbi-nr.taxonomy.dmnd' \
+  --protaccession '/path/to/prot.accession2taxid.txt' \
+  --taxon_dir '/path/to/Taxonkit/directory' \
+  --spadesbin '/path/to/SPAdes/bin' \
+  --length_seq 140 \
+  --diam_evalue 1e-5 \
+  --diam_id 96.0 \
+  --diam_querycov 51.0
+```
+
+*Replace file paths and profiles as needed for your environment.*
+
+### Profiles for HPC environments
+
+- For SLURM, use `-profile slurm`
+- For SGE, use `-profile sge`
+- If running on the [IFB
+  cluster](https://www.france-bioinformatique.fr/en/ifb-core-cluster/),
+  use `-profile conda_IFB` to load the appropriate Conda environment
+
+### What if a job stops and I want to restart it?
+
+One of Nextflow key strengths is its ability to resume from where it
+left off after a failure or interruption. To restart your pipeline
+without re-running completed tasks, simply add the `-resume` option to
+your Nextflow command.
+
+If your job fails due to resource limitations (e.g., RAM or CPU), you
+can adjust the resource settings in the `nextflow.config` file. Modify
+the CPU or memory allocation for the affected process to better suit
+your system before rerunning with `-resume`.
