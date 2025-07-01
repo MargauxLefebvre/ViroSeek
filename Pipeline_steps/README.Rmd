@@ -20,14 +20,19 @@ conda activate ViroSeek
 # Set the variables
 SampleID=sample_ID
 FASTQDIR=/path/to/fastq/directory
-SPADESDIR=/path/to/SPades/bin
-DBDIAMOND=path/to/ncbi-nr.taxonomy.dmnd
-TAXONKITDIR=/path/to/Taxonkit/files
-PROTACCESION=/path/to/prot.accession2taxid.txt # this file must be dezipped
-SILVAREF=/path/to/SILVA/fasta
-
 TEMPDIR=./temp_$SampleID
 RESULTDIR=./results/taxo_$SampleID
+
+SILVAREF=/path/to/SILVA/fasta
+DBDIAMOND=/path/to/ncbi-nr.taxonomy.dmnd
+PROTACCESION=/path/to/prot.accession2taxid.txt  # this file must be decompressed
+TAXONKITDIR=/path/to/Taxonkit/files
+SPADESDIR=/path/to/SPades/bin
+
+LENGTH_SEQ='0'
+DIAM_EVALUE='0.001'
+DIAM_ID='0'
+DIAM_QUERYCOV='0'
 
 # Create the TEMPDIR and RESULTDIR
 mkdir -p $TEMPDIR
@@ -97,6 +102,9 @@ $SPADESDIR/spades.py --rnaviral \
     --threads 12 \
     --memory 72 \
     -o $TEMPDIR/assembly_spades
+
+# Filter the assembly
+bioawk -c fastx "{ if(length($seq) > $LENGTH_SEQ) { print '>'$name; print $seq }}" $TEMPDIR/assembly_spades/contigs.fasta > $TEMPDIR/assembly_spades/contigs.filtered.fasta
 ```
 
 # Quantification by mapping cleaned reads to the assembly
@@ -105,13 +113,12 @@ $SPADESDIR/spades.py --rnaviral \
 echo "--> Minimap for $SampleID"
 mkdir $TEMPDIR/Bam
 
-minimap2 -t 16 -a $TEMPDIR/assembly_spades/contigs.fasta \
+minimap2 -t 16 -a $TEMPDIR/assembly_spades/contigs.filtered.fasta \
         $TEMPDIR/BBduk/${SampleID}_R1_rmrdna.fastq.gz \
         $TEMPDIR/BBduk/${SampleID}_R2_rmrdna.fastq.gz \
         | samtools view -@ 16 -S -b - > $TEMPDIR/Bam/${SampleID}_map.bam
 
 echo "--> Quantify reads count for $SampleID"
-
 samtools sort -@ 16 $TEMPDIR/Bam/${SampleID}_map.bam -o $TEMPDIR/Bam/${SampleID}_sorted.bam
 samtools markdup -@ 16 -r $TEMPDIR/Bam/${SampleID}_sorted.bam $TEMPDIR/Bam/${SampleID}_dedup.bam
 samtools index $TEMPDIR/Bam/${SampleID}_dedup.bam
@@ -124,8 +131,9 @@ samtools idxstats $TEMPDIR/Bam/${SampleID}_dedup.bam > $TEMPDIR/Bam/${SampleID}_
 echo "--> Diamond for $SampleID"
 mkdir $TEMPDIR/Taxo
 
-diamond blastx -p 16 -d $DBDIAMOND -q $TEMPDIR/assembly_spades/contigs.fasta \
-        -o $TEMPDIR/Taxo/${SampleID}.tsv --max-target-seqs 1
+diamond blastx -p 16 -F 15 -d $DBDIAMOND -q $TEMPDIR/assembly_spades/contigs.filtered.fasta \
+        -o $TEMPDIR/Taxo/${SampleID}.tsk --max-target-seqs 1 -e $DIAM_EVALUE --id $DIAM_ID --query-cover $DIAM_QUERYCOV \
+        --very-sensitive --range-culling
 
 # Retrieve the accession IDs column from the Diamond file
     cut -f2 $TEMPDIR/Taxo/${SampleID}.tsv > $TEMPDIR/Taxo/${SampleID}_accession.txt
