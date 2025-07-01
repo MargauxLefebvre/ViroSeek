@@ -125,9 +125,9 @@ creation.
 
 ## Using the Bash script only
 
-You can run the pipeline directly with the bash script `ViroSeek.sh`
-(located in this directory). Feel free to modify or adapt it to fit your
-needs.
+You can run the pipeline directly with the bash script
+[`ViroSeek.sh`](https://github.com/MargauxLefebvre/ViroSeek/blob/main/ViroSeek.sh).
+Feel free to modify or adapt it to fit your needs.
 
 ### Script variables
 
@@ -165,11 +165,11 @@ look at the
 
 - Nextflow: workflow manager to run the pipeline.
 - Conda: for managing software environments.
-- ViroSeek.nf: the main Nextflow pipeline script included in this
-  repository.
-- nextflow.config: Configuration file that defines compute profiles
-  (e.g., SLURM, SGE) and pipeline parameters, also included in this
-  repository.
+- [ViroSeek.nf](https://github.com/MargauxLefebvre/ViroSeek/blob/main/ViroSeek.nf):
+  the main Nextflow pipeline script included in this repository.
+- [nextflow.config](https://github.com/MargauxLefebvre/ViroSeek/blob/main/nextflow.config):
+  Configuration file that defines compute profiles (e.g., SLURM, SGE)
+  and pipeline parameters, also included in this repository.
 
 ### Parameters
 
