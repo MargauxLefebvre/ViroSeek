@@ -1,0 +1,363 @@
+#!/usr/bin/env nextflow
+
+/*
+Autors: Margaux J.M. LEFEBVRE and Audric BERGER
+Github and manual: MargauxLefebvre/ViroSeek
+Date: June 2025
+ */
+ 
+nextflow.enable.dsl=2
+
+params.input
+params.silvaref
+params.spadesbin
+params.diamond_db
+params.protaccession
+params.taxon_dir
+params.diam_evalue = '0.001'
+params.diam_id = '0'
+params.diam_querycov = '0'
+params.length_seq = '0'
+params.results_dir = 'results'
+params.work_dir = 'work'
+
+/*
+ * Process: FastQC before trimming
+ */
+process fastqc_pretrim {
+  
+    tag "$sample_id"
+    
+    publishDir "${params.results_dir}/$sample_id/QC/fastqc_pretrim", mode: 'copy'
+
+    input:
+    tuple val(sample_id), path(read1), path(read2)
+
+    output:
+    tuple val(sample_id), path(read1), path(read2), path("${sample_id}_fastqc_pre")
+
+
+    script:
+    """
+    mkdir -p ${sample_id}_fastqc_pre
+    zcat $read1 $read2 | fastqc -t 4 stdin:${sample_id}.pretrim --outdir=${sample_id}_fastqc_pre
+    """
+}
+
+/*
+ * Process: Trimming by Trimgalore
+ */
+process trimming {
+
+    tag "$sample_id"
+
+    input:
+    tuple val(sample_id), path(read1), path(read2)
+
+    output:
+    tuple val(sample_id),
+          path("./*_val_1.fq.gz"),
+          path("./*_val_2.fq.gz")
+
+    script:
+    """
+
+    trim_galore --paired --cores 8 --gzip \
+        --output_dir ./ ${read1} ${read2}
+    """
+}
+
+/*
+ * Process: FastQC after trimming
+ */
+process fastqc_posttrim {
+
+    tag "$sample_id"
+    
+    publishDir "${params.results_dir}/$sample_id/QC/fastqc_postrim", mode: 'copy'
+
+    input:
+    tuple val(sample_id), path(trimmed_read1), path(trimmed_read2)
+
+    output:
+    path("${sample_id}_fastqc_posttrim")
+
+    script:
+    """
+    mkdir -p ${sample_id}_fastqc_posttrim
+    zcat ${trimmed_read1} ${trimmed_read2} | fastqc -t 4 stdin:${sample_id}.trim --outdir=${sample_id}_fastqc_posttrim
+    """
+}
+
+/*
+ * Process: Filtration with BBduk
+ */
+process bbduk_filtering {
+
+    tag "$sample_id"
+
+    input:
+    tuple val(sample_id), path(trimmed_read1), path(trimmed_read2)
+
+    output:
+    tuple val(sample_id), 
+          path("${sample_id}_R1_rmrdna.fastq.gz"), 
+          path("${sample_id}_R2_rmrdna.fastq.gz")
+
+    script:
+    """
+    bbduk.sh \
+        -Xmx34g \
+        in1=${trimmed_read1} \
+        in2=${trimmed_read2} \
+        out1=${sample_id}_R1_rmrdna.fastq.gz \
+        out2=${sample_id}_R2_rmrdna.fastq.gz \
+        threads=8 \
+        ref=${params.silvaref}
+    """
+}
+
+/*
+ * Process: Merge the fastq for Spades
+ */
+process merging {
+
+    tag "$sample_id"
+
+    input:
+    tuple val(sample_id), path(postBBduk_read1), path(postBBduk_read2)
+
+    output:
+        tuple val(sample_id), 
+          path("${sample_id}_inter_rmrdna.fastq.gz")
+
+    script:
+    """
+    seqtk mergepe ${postBBduk_read1} ${postBBduk_read2} | bgzip > ${sample_id}_inter_rmrdna.fastq.gz
+    """
+}
+
+/*
+ * Process: FastQC after BBduk
+ */
+process fastqc_postBBduk {
+
+    tag "$sample_id"
+    
+    publishDir "${params.results_dir}/$sample_id/QC/fastqc_postBBduk", mode: 'copy'
+
+    input:
+    tuple val(sample_id), path(postBBduk_read1), path(postBBduk_read2)
+
+    output:
+    path("${sample_id}_fastqc_postbbduk")
+
+    script:
+    """
+    mkdir -p ${sample_id}_fastqc_postbbduk
+    zcat ${postBBduk_read1} ${postBBduk_read2} | fastqc -t 4 stdin:${sample_id}.trim --outdir=${sample_id}_fastqc_postbbduk
+    """
+}
+
+/*
+ * Process: Asssembly with Spades
+ */
+process assembly {
+
+    tag "$sample_id"
+    
+    publishDir "${params.results_dir}/$sample_id", mode: 'copy'
+
+    input:
+    tuple val(sample_id), path(postBBduk_inter)
+
+    output:
+        tuple val(sample_id), 
+          path("assembly_spades")
+
+    script:
+    """
+    mkdir -p assembly_spades
+    
+    ${params.spadesbin}/spades.py --rnaviral \
+    --12 ${postBBduk_inter} \
+    --threads 12 \
+    --memory 72 \
+    -o assembly_spades
+    
+    # Filter the assembly
+    bioawk -c fastx '{ if(length(\$seq) > ${params.length_seq}) { print ">"\$name; print \$seq }}' \
+    assembly_spades/contigs.fasta > assembly_spades/contigs.filtered.fasta
+    """
+}
+
+/*
+ * Process: Quantification by mapping cleaned reads to the assembly
+ */
+process quantification {
+
+    tag "$sample_id"
+    
+    publishDir "${params.results_dir}/$sample_id", mode: 'copy'
+
+    input:
+    tuple val(sample_id), path(postBBduk_read1), path(postBBduk_read2), path(dir_spades)
+
+    output:
+        tuple val(sample_id), 
+          path("${sample_id}_contigs_reads.tsv")
+
+    script:
+    """
+    minimap2 -t 16 -a ${dir_spades}/contigs.filtered.fasta \
+            ${postBBduk_read1} ${postBBduk_read2} \
+            | samtools view -@ 16 -S -b - > ${sample_id}_map.bam
+
+    samtools sort -@ 16 ${sample_id}_map.bam -o ${sample_id}_sorted.bam
+    samtools markdup -@ 16 -r ${sample_id}_sorted.bam ${sample_id}_dedup.bam
+    samtools index ${sample_id}_dedup.bam
+    samtools idxstats ${sample_id}_dedup.bam > ${sample_id}_contigs_reads.tsv
+    """
+}
+
+/*
+ * Process: Taxonomic assignation with diamond
+ */
+process taxo_assign {
+
+    tag "$sample_id"
+    
+    publishDir "${params.results_dir}/$sample_id/taxo", mode: 'copy'
+
+    input:
+    tuple val(sample_id), path(dir_spades)
+
+    output:
+        tuple val(sample_id), 
+          path("${sample_id}.tsv")
+
+    script:
+    """
+    diamond blastx -p 16 -d ${params.diamond_db} -q ${dir_spades}/contigs.filtered.fasta \
+            -o ${sample_id}.tsv --max-target-seqs 1 -e ${params.diam_evalue} --id ${params.diam_id} \
+            --query-cover ${params.diam_cov} --very-sensitive --range-culling -F 15
+    """
+}
+
+/*
+ * Process: Generate the taxonomic table
+ */
+process taxo_table {
+
+    tag "$sample_id"
+    
+    publishDir "${params.results_dir}/$sample_id/taxo", mode: 'copy'
+
+    input:
+    tuple val(sample_id), path(output_diamond)
+
+    output:
+        tuple val(sample_id),
+        path("${sample_id}.accession_taxid.txt"),
+          path("${sample_id}_taxonomy_table.txt")
+
+    script:
+    """
+  # Retrieve the accession IDs column from the Diamond file
+      cut -f2 ${output_diamond} > ${sample_id}_accession.txt
+  
+  # Associate taxIDs with accession IDs
+      grep -F -f ${sample_id}_accession.txt ${params.protaccession} > ${sample_id}.accession_taxid.txt
+  
+  # Extract taxIDs
+      cut -f2 ${sample_id}.accession_taxid.txt > ${sample_id}.taxid.txt
+  
+  # Use TaxonKit to obtain taxonomy from taxIDs
+      taxonkit lineage ${sample_id}.taxid.txt --data-dir ${params.taxon_dir} > ${sample_id}_taxonomy_table.txt
+    """
+}
+
+/*
+ * Process: Add the quantification to the taxo table
+ */
+process taxo_quanti {
+
+    tag "$sample_id"
+
+    input:
+    tuple val(sample_id), path(quanti_stats), path(output_diamond), path(taxid), path(taxo_table)
+
+    output:
+        tuple val(sample_id), 
+          path("${sample_id}_taxonomy_viral.clean.txt"), 
+          path("${sample_id}_all_viral_taxonomy.txt")
+
+    script:
+    """
+    # Merge contigs_reads.tsv and X.tsv files by contig number
+        join -1 1 -2 1 <(sort "${quanti_stats}") <(sort "${output_diamond}") > ${sample_id}_contig_reads_accession.txt
+    
+    # Add taxIDs
+        join -1 5 -2 1 <(sort -k5,5 "${sample_id}_contig_reads_accession.txt") <(sort -k1,1 "${taxid}") > ${sample_id}_contig_reads_accession_taxid.txt
+    
+    # Merge with taxonomy table
+        join -1 16 -2 1 <(sort -k16,16 "${sample_id}_contig_reads_accession_taxid.txt") <(sort -k1,1 "${taxo_table}") > ${sample_id}_final_assembly.txt
+    
+    # Filter to keep only lines containing “virus”.
+        grep -i "virus" ${sample_id}_final_assembly.txt > ${sample_id}_virus_taxonomy.txt
+    uniq ${sample_id}_virus_taxonomy.txt > ${sample_id}_filter_viral_taxonomy.txt
+    
+    # Keep only reads count and the taxonomy in a tab delimited file
+      awk '{printf "%s\t", \$5; for (i=17; i<=NF; i++) printf "%s%s", \$i, (i<NF?" ":"\n")}' ${sample_id}_filter_viral_taxonomy.txt > ${sample_id}_taxonomy_viral.txt
+     sed 's/;/\t/g' ${sample_id}_taxonomy_viral.txt > ${sample_id}_taxonomy_viral.clean.txt
+     cp -r ${sample_id}_filter_viral_taxonomy.txt ${sample_id}_all_viral_taxonomy.txt
+    """
+}
+
+/*
+ * Main workflow
+ */
+workflow {
+
+    Channel
+        .fromPath(params.input)
+        .splitCsv(header: false)
+        .map { row -> tuple(row[0], file(row[1]), file(row[2])) }
+        .set { samples_ch }
+
+    // Run FastQC pre-trimming
+    samples_ch | fastqc_pretrim
+
+    // Run trimming and capture output channel
+    trimmed_ch = samples_ch | trimming
+
+    // FastQC post trimming using trimmed reads
+    trimmed_ch | fastqc_posttrim
+
+    // BBduk filtering using trimmed reads
+    BBduk_ch = trimmed_ch | bbduk_filtering
+    
+    // FastQC post BBduk
+    BBduk_ch | fastqc_postBBduk
+    
+    //Make the assembly
+    assembly_ch = BBduk_ch | merging | assembly
+    
+    //Map on the assembly
+    joinfastqassembly_ch = BBduk_ch.join(assembly_ch, by: 0)
+    quanti_ch = joinfastqassembly_ch | quantification
+    
+    //Taxonomic assignation
+    diamond_ch = assembly_ch | taxo_assign 
+    taxo_ch = diamond_ch | taxo_table
+    
+    jointaxoquanti_ch = quanti_ch
+    .join(diamond_ch, by: 0)
+    .map { sample_id, quant_stats, diamond_file -> tuple(sample_id, quant_stats, diamond_file) }
+    .join(taxo_ch, by: 0)
+    .map { sample_id, quant_stats, diamond_file, taxid, taxo_table -> tuple(sample_id, quant_stats, diamond_file, taxid, taxo_table) }
+
+    jointaxoquanti_ch | taxo_quanti
+    
+}
+
