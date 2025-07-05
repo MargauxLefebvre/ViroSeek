@@ -18,8 +18,8 @@ params.diam_evalue = '0.001'
 params.diam_id = '0'
 params.diam_querycov = '0'
 params.length_seq = '0'
+params.diam_sensi = ''
 params.results_dir = 'results'
-params.work_dir = 'work'
 
 /*
  * Process: FastQC before trimming
@@ -28,7 +28,7 @@ process fastqc_pretrim {
   
     tag "$sample_id"
     
-    publishDir "${params.results_dir}/$sample_id/QC/fastqc_pretrim", mode: 'copy'
+    publishDir "${params.results_dir}/$sample_id/fastQC/fastqc_pretrim", mode: 'copy'
 
     input:
     tuple val(sample_id), path(read1), path(read2)
@@ -56,14 +56,15 @@ process trimming {
 
     output:
     tuple val(sample_id),
-          path("./*_val_1.fq.gz"),
-          path("./*_val_2.fq.gz")
+          path("trimgalore/${sample_id}/*_val_1.fq.gz"),
+          path("trimgalore/${sample_id}/*_val_2.fq.gz")
 
     script:
     """
-
+    mkdir -p trimgalore/${sample_id}
     trim_galore --paired --cores 8 --gzip \
-        --output_dir ./ ${read1} ${read2}
+        --output_dir trimgalore/${sample_id} \
+        ${read1} ${read2}
     """
 }
 
@@ -74,7 +75,7 @@ process fastqc_posttrim {
 
     tag "$sample_id"
     
-    publishDir "${params.results_dir}/$sample_id/QC/fastqc_postrim", mode: 'copy'
+    publishDir "${params.results_dir}/$sample_id/fastQC/fastqc_postrim", mode: 'copy'
 
     input:
     tuple val(sample_id), path(trimmed_read1), path(trimmed_read2)
@@ -144,7 +145,7 @@ process fastqc_postBBduk {
 
     tag "$sample_id"
     
-    publishDir "${params.results_dir}/$sample_id/QC/fastqc_postBBduk", mode: 'copy'
+    publishDir "${params.results_dir}/$sample_id/fastQC/fastqc_postBBduk", mode: 'copy'
 
     input:
     tuple val(sample_id), path(postBBduk_read1), path(postBBduk_read2)
@@ -226,23 +227,30 @@ process quantification {
 process taxo_assign {
 
     tag "$sample_id"
-    
-    publishDir "${params.results_dir}/$sample_id/taxo", mode: 'copy'
+
+    publishDir "${params.results_dir}/$sample_id", mode: 'copy'
 
     input:
     tuple val(sample_id), path(dir_spades)
 
     output:
-        tuple val(sample_id), 
-          path("${sample_id}.tsv")
+    tuple val(sample_id), path("${sample_id}.tsv")
 
     script:
+    // Safely build sensitivity flag only if valid
+    def valid_sensi_flags = [
+        '--faster', '--fast', '--mid-sensitive',
+        '--sensitive', '--more-sensitive', '--very-sensitive', '--ultra-sensitive'
+    ]
+
+    def sensi_flag = valid_sensi_flags.contains(params.diam_sensi) ? params.diam_sensi : ''
     """
-    diamond blastx -p 16 -d ${params.diamond_db} -q ${dir_spades}/contigs.filtered.fasta \
-            -o ${sample_id}.tsv --max-target-seqs 1 -e ${params.diam_evalue} --id ${params.diam_id} \
-            --query-cover ${params.diam_cov} --very-sensitive --range-culling -F 15
+    diamond blastx -p 32 -d ${params.diamond_db} -q ${dir_spades}/contigs.filtered.fasta \
+        -o ${sample_id}.tsv --max-target-seqs 1 -e ${params.diam_evalue} --id ${params.diam_id} \
+        --query-cover ${params.diam_querycov} --range-culling -F 15 ${sensi_flag}
     """
 }
+
 
 /*
  * Process: Generate the taxonomic table
@@ -250,8 +258,6 @@ process taxo_assign {
 process taxo_table {
 
     tag "$sample_id"
-    
-    publishDir "${params.results_dir}/$sample_id/taxo", mode: 'copy'
 
     input:
     tuple val(sample_id), path(output_diamond)
@@ -283,6 +289,8 @@ process taxo_table {
 process taxo_quanti {
 
     tag "$sample_id"
+    
+    publishDir "${params.results_dir}/$sample_id", mode: 'copy'
 
     input:
     tuple val(sample_id), path(quanti_stats), path(output_diamond), path(taxid), path(taxo_table)
@@ -308,7 +316,7 @@ process taxo_quanti {
     uniq ${sample_id}_virus_taxonomy.txt > ${sample_id}_filter_viral_taxonomy.txt
     
     # Keep only reads count and the taxonomy in a tab delimited file
-      awk '{printf "%s\t", \$5; for (i=17; i<=NF; i++) printf "%s%s", \$i, (i<NF?" ":"\n")}' ${sample_id}_filter_viral_taxonomy.txt > ${sample_id}_taxonomy_viral.txt
+      awk '{printf "%s\t", \$5; for (i=17; i<=NF; i++) printf "%s%s", \$i, (i<NF?" ":"\\n")}' ${sample_id}_filter_viral_taxonomy.txt > ${sample_id}_taxonomy_viral.txt
      sed 's/;/\t/g' ${sample_id}_taxonomy_viral.txt > ${sample_id}_taxonomy_viral.clean.txt
      cp -r ${sample_id}_filter_viral_taxonomy.txt ${sample_id}_all_viral_taxonomy.txt
     """

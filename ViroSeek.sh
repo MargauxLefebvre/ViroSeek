@@ -22,6 +22,7 @@ LENGTH_SEQ='0'
 DIAM_EVALUE='0.001'
 DIAM_ID='0'
 DIAM_QUERYCOV='0'
+DIAM_SENSI=''
 
 # Create the TEMPDIR and RESULTDIR
 mkdir -p $TEMPDIR
@@ -95,8 +96,8 @@ echo "--> Diamond for $SampleID"
 mkdir $TEMPDIR/Taxo
 
 diamond blastx -p 16 -F 15 -d $DBDIAMOND -q $TEMPDIR/assembly_spades/contigs.filtered.fasta \
-        -o $TEMPDIR/Taxo/${SampleID}.tsk --max-target-seqs 1 -e $DIAM_EVALUE --id $DIAM_ID --query-cover $DIAM_QUERYCOV \
-        --very-sensitive --range-culling
+        -o $TEMPDIR/Taxo/${SampleID}.tsv --max-target-seqs 1 -e $DIAM_EVALUE --id $DIAM_ID --query-cover $DIAM_QUERYCOV \
+        --very-sensitive --range-culling $DIAM_SENSI
 
 # Retrieve the accession IDs column from the Diamond file
     cut -f2 $TEMPDIR/Taxo/${SampleID}.tsv > $TEMPDIR/Taxo/${SampleID}_accession.txt
@@ -137,6 +138,7 @@ cp -r $TEMPDIR/fastQC/ $RESULTDIR
 cp -r $TEMPDIR/Taxo/${SampleID}_taxonomy_viral.txt $RESULTDIR/${SampleID}_taxonomy_viral.clean.txt
 cp -r $TEMPDIR/assembly_spades $RESULTDIR
 cp -r $TEMPDIR/Taxo/${SampleID}_filter_viral_taxonomy.txt $RESULTDIR/${SampleID}_all_viral_taxonomy.txt
+cp -r $TEMPDIR/Taxo/${SampleID}.tsv $RESULTDIR
 
 # Delete intermediate files
-#rm -rf $TEMPDIR
+rm -rf $TEMPDIR
