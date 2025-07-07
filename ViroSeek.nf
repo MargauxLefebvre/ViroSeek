@@ -34,7 +34,7 @@ process fastqc_pretrim {
     tuple val(sample_id), path(read1), path(read2)
 
     output:
-    tuple val(sample_id), path(read1), path(read2), path("${sample_id}_fastqc_pre")
+    path("${sample_id}_fastqc_pre")
 
 
     script:
