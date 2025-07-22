@@ -1,7 +1,7 @@
 ViroSeek
 ================
 Margaux Lefebvre and Audric Berger
-2025-07-05
+2025-07-22
 
 # Presentation
 
@@ -173,7 +173,8 @@ look at the
 
 **Requirements:**
 
-- Nextflow: workflow manager to run the pipeline.
+- Nextflow: workflow manager to run the pipeline (the pipeline was
+  developed and tested with v24.10.4).
 - Conda: for managing software environments.
 - [ViroSeek.nf](https://github.com/MargauxLefebvre/ViroSeek/blob/main/ViroSeek.nf):
   the main Nextflow pipeline script included in this repository.
@@ -204,7 +205,7 @@ look at the
 | `--diam_evalue` | `0.001` | Maximum **e-value** for DIAMOND alignment hits. Lower values increase stringency. |
 | `--diam_id` | `0` | Minimum **percent identity** required for DIAMOND hits (0–100). |
 | `--diam_querycov` | `0` | Minimum **query coverage** percentage required for DIAMOND hits. |
-| `--diam_sensi` | `` | The sensitivity modes of Diamond. The accepted values are: `--faster`, `--fast`, `--mid-sensitive`, `--sensitive`, `--more-sensitive`, `--very-sensitive` and `--ultra-sensitive`. For more details, see [DIAMOND wiki](https://github.com/bbuchfink/diamond/wiki/3.-Command-line-options#sensitivity-modes). |
+| `--diam_sensi` | (empty) | The sensitivity modes of Diamond. The accepted values are: `--faster`, `--fast`, `--mid-sensitive`, `--sensitive`, `--more-sensitive`, `--very-sensitive` and `--ultra-sensitive`. For more details, see [DIAMOND wiki](https://github.com/bbuchfink/diamond/wiki/3.-Command-line-options#sensitivity-modes). |
 
 **Note:** it is also possible to specify which configuration file to use
 with the `-c' option '/path/to/the/nextflow.config'`.
