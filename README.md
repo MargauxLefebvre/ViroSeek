@@ -195,6 +195,9 @@ look at the
 | `--taxon_dir` | Path to a directory containing **NCBI taxonomy dump files** (`names.dmp`, `nodes.dmp`, etc.) used by TaxonKit. ([DIAMOND setup](https://github.com/MargauxLefebvre/ViroSeek#diamond-and-taxonkit)) |
 | `--spadesbin` | Path to the **SPAdes binary folder**, which must contain `spades.py`. ([Installation guide](https://github.com/MargauxLefebvre/ViroSeek#install-the-software-for-the-pipeline)) |
 
+To activate the Conda environment, use the following profile:
+`-profile conda_env`.
+
 #### Optional parameters
 
 | Parameter | Default value | Description |
@@ -238,7 +241,7 @@ nextflow run ViroSeek.nf --input '/path/to/samples.csv' -profile conda_env,slurm
 - For SGE, use `-profile sge`
 - If running on the [IFB
   cluster](https://www.france-bioinformatique.fr/en/ifb-core-cluster/),
-  use `-profile conda_IFB` to load the appropriate Conda environment
+  use `-profile conda_IFB` to load properly the Conda environment
 
 ### What if a job stops and I want to restart it?
 
