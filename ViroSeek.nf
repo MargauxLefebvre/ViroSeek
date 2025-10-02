@@ -1,25 +1,41 @@
 #!/usr/bin/env nextflow
-
-/*
-Autors: Margaux J.M. LEFEBVRE and Audric BERGER
-Github and manual: MargauxLefebvre/ViroSeek
-Date: June 2025
- */
  
 nextflow.enable.dsl=2
 
-params.input
-params.silvaref
-params.spadesbin
-params.diamond_db
-params.protaccession
-params.taxon_dir
-params.diam_evalue = '0.001'
-params.diam_id = '0'
-params.diam_querycov = '0'
-params.length_seq = '0'
-params.diam_sensi = ''
-params.results_dir = 'results'
+
+// ---- check SILVA file
+/*
+def silva_ref_file        = ViroSeekUtils.resolveFile(params.silva_ref, "silva_ref")
+def diamond_db_file       = ViroSeekUtils.resolveFile(params.diamond_db, "diamond_db")
+def prot_accession_file   = ViroSeekUtils.resolveFile(params.taxonomy, "prot_accession")
+def taxonkit_dir_file        = ViroSeekUtils.resolveFile(params.reference, "taxonkit_dir")
+*/
+/* Default value in case removed from nextflow.config */
+input          = ''        // Path to a CSV file with 3 columns
+results_dir    = 'results' // Path to output results
+
+// Database
+silva_ref      = ''         // Path to the SILVA reference file for BBduk (fasta format)
+diamond_db     = ''         // Path to the Diamond database file (ncbi-nr.taxonomy.dmnd)
+prot_accession = ''         // Path to the prot.accession2taxid.txt file from NCBI (ftp://ftp.ncbi.nlm.nih.gov/pub/taxonomy/accession2taxid/prot.accession2taxid.gz)
+taxonkit_dir      = ''         // Path to the TaxonKit files (download and uncompress from https://bioinf.shenwei.me/taxonkit/)
+
+// Trim
+trimming       = ''          // Tools to use to trim [trimgalore, fastp]. Empty is accepted and means no trimming.
+trimming_opt   = ''          // option to set to trimming tool choosen
+
+// Assembly
+length_seq     = '0'         // Minimum contig length to keep after assembly (default 0, no filtering)
+
+// Diamond options
+diam_sensi     = ''          // Sensitivity option for Diamond (default empty). Options: --sensitive, --more-sensitive, --very-sensitive
+diam_evalue    = '0.001'     // E-value threshold for Diamond (default 0.001)
+diam_id        = '0'         // Minimum percentage identity for Diamond (default 0)
+diam_querycov  = '0'  
+
+// Other
+trimming_tools = [ 'trimgalore', 'fastp' ]
+valid_sensi_flags = ["--sensitive", "--more-sensitive", "--very-sensitive"]
 
 /*
  * Process: FastQC before trimming
@@ -279,7 +295,7 @@ process taxo_table {
       cut -f2 ${sample_id}.accession_taxid.txt > ${sample_id}.taxid.txt
   
   # Use TaxonKit to obtain taxonomy from taxIDs
-      taxonkit lineage ${sample_id}.taxid.txt --data-dir ${params.taxon_dir} > ${sample_id}_taxonomy_table.txt
+      taxonkit lineage ${sample_id}.taxid.txt --data-dir ${params.taxonkit_dir} > ${sample_id}_taxonomy_table.txt
     """
 }
 
@@ -327,11 +343,59 @@ process taxo_quanti {
  */
 workflow {
 
-    Channel
-        .fromPath(params.input)
-        .splitCsv(header: false)
-        .map { row -> tuple(row[0], file(row[1]), file(row[2])) }
-        .set { samples_ch }
+    // Check input parameters
+    silva_ref = Channel.fromPath(params.silva_ref, checkIfExists: true)
+                        .ifEmpty { exit 1, "Cannot find silva_ref file matching ${params.silva_ref}!\n" }
+    diamond_db = Channel.fromPath(params.diamond_db, checkIfExists: true)
+                        .ifEmpty { exit 1, "Cannot find diamond_db matching ${params.diamond_db}!\n" }
+    prot_accession = Channel.fromPath(params.prot_accession, checkIfExists: true)
+                        .ifEmpty { exit 1, "Cannot find prot_accession matching ${params.prot_accession}!\n" }
+    taxonkit_dir = Channel.fromPath(params.taxonkit_dir, checkIfExists: true)
+                        .ifEmpty { exit 1, "Cannot find taxonkit_dir matching ${params.taxonkit_dir}!\n" }
+    Channel.fromPath(params.input)
+            .splitCsv(header: true, sep: ',')
+             .map { row ->
+                // Check sample column
+                if ( row.sample == null ){ 
+                    error "The input ${input_csv} file does not contain a 'sample' column!\n" 
+                } 
+                def sample_id    = row.sample
+                                    
+                if(row.input_1 == null && row.fastq_1 == null){ 
+                        error "The input ${input_csv} file does not contain a 'input_1' or 'fastq_1' column!\n" 
+                }
+                // Check input_1/fastq_1 column
+                def fastq1;
+                if(row.input_1) {
+                    fastq1 = file(row.input_1.trim())
+                } else {
+                    fastq1 = file(row.fastq_1.trim())
+                }
+                if(! fastq1.toString().endsWith('bam')) {
+                    if (! AlineUtils.is_url(fastq1) ) {
+                                if (! fastq1.exists() ) {
+                                    error "The input ${fastq1} file does not does not exits!\n"
+                                }
+                    } else {
+                        log.info "This fastq input is an URL: ${fastq1}"
+                    }
+                    // Check input_2/fastq_2 column
+                    def fastq2;
+                    if(row.input_2) {
+                        fastq2 = file(row.input_2.trim())
+                    } else if (row.fastq_2) {
+                        fastq2 = file(row.fastq_2.trim())
+                    }
+                    if (fastq2){
+                        if ( ! AlineUtils.is_url(fastq2) ) {
+                            if (! fastq2.exists() ) {
+                                error "The input ${fastq2} file does not does not exits!\n"
+                            }
+                        } else {
+                            log.info "This fastq input is an URL: ${fastq1}"
+                        }
+                    }
+            .set { samples_ch }
 
     // Run FastQC pre-trimming
     samples_ch | fastqc_pretrim
@@ -369,3 +433,112 @@ workflow {
     
 }
 
+//*************************************************
+def header(){
+    // Log colors ANSI codes
+    c_reset  = params.monochrome_logs ? '' : "\033[0m";
+    c_dim    = params.monochrome_logs ? '' : "\033[2m";
+    c_black  = params.monochrome_logs ? '' : "\033[0;30m";
+    c_green  = params.monochrome_logs ? '' : "\033[0;32m";
+    c_yellow = params.monochrome_logs ? '' : "\033[0;33m";
+    c_blue   = params.monochrome_logs ? '' : "\033[0;34m";
+    c_purple = params.monochrome_logs ? '' : "\033[0;35m";
+    c_cyan   = params.monochrome_logs ? '' : "\033[0;36m";
+    c_white  = params.monochrome_logs ? '' : "\033[0;37m";
+    c_red    = params.monochrome_logs ? '' : "\033[0;31m";
+
+    return """
+    -${c_dim}--------------------------------------------------${c_reset}-
+    ${c_blue}.-./`) ${c_white}.-------.    ${c_red} ______${c_reset}
+    ${c_blue}\\ .-.')${c_white}|  _ _   \\  ${c_red} |    _ `''.${c_reset}     French National   
+    ${c_blue}/ `-' \\${c_white}| ( ' )  |  ${c_red} | _ | ) _  \\${c_reset}    
+    ${c_blue} `-'`\"`${c_white}|(_ o _) /  ${c_red} |( ''_'  ) |${c_reset}    Research Institute for    
+    ${c_blue} .---. ${c_white}| (_,_).' __ ${c_red}| . (_) `. |${c_reset}
+    ${c_blue} |   | ${c_white}|  |\\ \\  |  |${c_red}|(_    ._) '${c_reset}    Sustainable Development
+    ${c_blue} |   | ${c_white}|  | \\ `'   /${c_red}|  (_.\\.' /${c_reset}
+    ${c_blue} |   | ${c_white}|  |  \\    / ${c_red}|       .'${c_reset}
+    ${c_blue} '---' ${c_white}''-'   `'-'  ${c_red}'-----'`${c_reset}
+    ${c_purple} ViroSeek - Viral detection pipeline for second-generation sequencing - v${workflow.manifest.version}${c_reset}
+    ${c_white}${workflow.manifest.author}${c_reset}
+    -${c_dim}--------------------------------------------------${c_reset}-
+    """.stripIndent()
+}
+
+// Help Message
+def helpMSG() {
+    log.info """
+    ViroSeek - Viral detection pipeline for second-generation sequencing - v${workflow.manifest.version}
+
+        ViroSeek is a pipeline designed for the analysis of target-enriched
+        libraries, with specific optimization for managing high PCR duplicate
+        rates and performing per-sample assembly. The primary inputs are
+        paired-end FASTQ files generated by next-generation sequencing (NGS),
+        while external databases for ribosomal RNA filtering and taxonomic
+        assignment must be provided by the user.
+
+        Usage example:
+        nextflow run ViroSeek.nf --input /path/to/file.csv --trimming trimgalore --aligner bbmap,bowtie2 --fastqc true
+
+        --help                      prints the help section
+
+    Mandatory Parameters
+        General
+            --input                 Path to a CSV file that expects 3 columns: `sample_id,read1.fastq.gz,read2.fastq.gz`. Each row represents a paired-end sample.
+    
+        Database
+            --silva_ref             Path to the SILVA reference file for BBduk (fasta format)
+            --diamond_db            Path to the DIAMOND database file (ncbi-nr.taxonomy.dmnd)
+            --prot_accession        Path to the prot.accession2taxid.txt file from NCBI (ftp://ftp.ncbi.nlm.nih.gov/pub/taxonomy/accession2taxid/prot.accession2taxid.gz)
+            --taxonkit_dir             Path to the TaxonKit files (download and uncompress from https://bioinf.shenwei.me/taxonkit/)
+
+    Optional parameters
+        General
+            --results_dir           Path to output results directory. Default: results
+
+        Trimming
+            --trimming              Tools to use to trim among this list ${trimming_tools} [trimgalore, fastp]. Empty is accepted and means no trimming.
+            --trimming_opt          option to be used by the trimming tool choosen
+
+        Assembly
+            --length_seq             Minimum contig length to keep after assembly (default 0, no filtering)
+
+        Taxonomic assignation
+            --diam_sensi            Sensitivity mode for DIAMOND among this list ${valid_sensi_flags} (default: empty, which means no sensitivity flag)
+            --diam_evalue           E-value threshold for DIAMOND (default: 1e-5)
+            --diam_id               Minimum percent identity for DIAMOND (default: 0)
+            --diam_querycov         Minimum query coverage for DIAMOND (default: 0)
+  
+        Other
+            --monochrome_logs        Set to true to disable color in logs (default: false)
+
+    """
+}
+
+
+/**************         onComplete         ***************/
+
+workflow.onComplete {
+
+    // Log colors ANSI codes
+    c_reset = params.monochrome_logs ? '' : "\033[0m";
+    c_green = params.monochrome_logs ? '' : "\033[0;32m";
+    c_red = params.monochrome_logs ? '' : "\033[0;31m";
+
+    if (workflow.success) {
+        log.info "\n${c_green}    AliNe pipeline complete!${c_reset}"
+    } else {
+        log.error "${c_red}Oops .. something went wrong${c_reset}"
+    }
+
+    log.info "    The results are available in the ‘${params.outdir}’ directory."
+    log.info """
+    AliNe Pipeline execution summary
+    --------------------------------------
+    Completed at : ${workflow.complete}
+    UUID         : ${workflow.sessionId}
+    Duration     : ${workflow.duration}
+    Success      : ${workflow.success}
+    Exit Status  : ${workflow.exitStatus}
+    Error report : ${workflow.errorReport ?: '-'}
+    """
+}
