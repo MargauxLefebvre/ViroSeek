@@ -2,17 +2,13 @@
  
 nextflow.enable.dsl=2
 
+//*************************************************
+// STEP 0 - parameters
+//*************************************************    
 
-// ---- check SILVA file
-/*
-def silva_ref_file        = ViroSeekUtils.resolveFile(params.silva_ref, "silva_ref")
-def diamond_db_file       = ViroSeekUtils.resolveFile(params.diamond_db, "diamond_db")
-def prot_accession_file   = ViroSeekUtils.resolveFile(params.taxonomy, "prot_accession")
-def taxonkit_dir_file        = ViroSeekUtils.resolveFile(params.reference, "taxonkit_dir")
-*/
 /* Default value in case removed from nextflow.config */
 input          = ''        // Path to a CSV file with 3 columns
-results_dir    = 'results' // Path to output results
+outdir         = 'results' // Path to output results
 
 // Database
 silva_ref      = ''         // Path to the SILVA reference file for BBduk (fasta format)
@@ -36,75 +32,26 @@ diam_querycov  = '0'
 // Other
 trimming_tools = [ 'trimgalore', 'fastp' ]
 valid_sensi_flags = ["--sensitive", "--more-sensitive", "--very-sensitive"]
+params.help = null
+params.debug = false
 
-/*
- * Process: FastQC before trimming
- */
-process fastqc_pretrim {
-  
-    tag "$sample_id"
-    
-    publishDir "${params.results_dir}/$sample_id/fastQC/fastqc_pretrim", mode: 'copy'
+//*************************************************
+// STEP 1 - check parameters
+//*************************************************
 
-    input:
-    tuple val(sample_id), path(read1), path(read2)
+// ---- check SILVA file
+def silva_ref_file        = ViroSeekUtils.resolveFile(params.silva_ref, "silva_ref")
+def diamond_db_file       = ViroSeekUtils.resolveFile(params.diamond_db, "diamond_db")
+def prot_accession_file   = ViroSeekUtils.resolveFile(params.prot_accession, "prot_accession")
+def taxonkit_dir_file     = ViroSeekUtils.resolveFile(params.taxonkit_dir, "taxonkit_dir")
+def nr_db_file            = ViroSeekUtils.resolveFile(params.nr_db, "nr_db")     
 
-    output:
-    tuple val(sample_id), path(read1), path(read2), path("${sample_id}_fastqc_pre")
-
-
-    script:
-    """
-    mkdir -p ${sample_id}_fastqc_pre
-    zcat $read1 $read2 | fastqc -t 4 stdin:${sample_id}.pretrim --outdir=${sample_id}_fastqc_pre
-    """
-}
-
-/*
- * Process: Trimming by Trimgalore
- */
-process trimming {
-
-    tag "$sample_id"
-
-    input:
-    tuple val(sample_id), path(read1), path(read2)
-
-    output:
-    tuple val(sample_id),
-          path("trimgalore/${sample_id}/*_val_1.fq.gz"),
-          path("trimgalore/${sample_id}/*_val_2.fq.gz")
-
-    script:
-    """
-    mkdir -p trimgalore/${sample_id}
-    trim_galore --paired --cores 8 --gzip \
-        --output_dir trimgalore/${sample_id} \
-        ${read1} ${read2}
-    """
-}
-
-/*
- * Process: FastQC after trimming
- */
-process fastqc_posttrim {
-
-    tag "$sample_id"
-    
-    publishDir "${params.results_dir}/$sample_id/fastQC/fastqc_postrim", mode: 'copy'
-
-    input:
-    tuple val(sample_id), path(trimmed_read1), path(trimmed_read2)
-
-    output:
-    path("${sample_id}_fastqc_posttrim")
-
-    script:
-    """
-    mkdir -p ${sample_id}_fastqc_posttrim
-    zcat ${trimmed_read1} ${trimmed_read2} | fastqc -t 4 stdin:${sample_id}.trim --outdir=${sample_id}_fastqc_posttrim
-    """
-}
+//*************************************************
+// STEP 2 - Include needed modules
+//*************************************************
+include {build_diamond_db} from "$baseDir/modules/diamond.nf"
+include {fastqc as fastqc_raw; fastqc as fastqc_posttrim} from "$baseDir/modules/fastqc.nf"
+include {trimming} from "$baseDir/modules/trimgalore.nf"
 
 /*
  * Process: Filtration with BBduk
@@ -130,7 +77,7 @@ process bbduk_filtering {
         out1=${sample_id}_R1_rmrdna.fastq.gz \
         out2=${sample_id}_R2_rmrdna.fastq.gz \
         threads=8 \
-        ref=${params.silvaref}
+        ref=${params.silva_ref}
     """
 }
 
@@ -161,7 +108,7 @@ process fastqc_postBBduk {
 
     tag "$sample_id"
     
-    publishDir "${params.results_dir}/$sample_id/fastQC/fastqc_postBBduk", mode: 'copy'
+    publishDir "${params.outdir}/$sample_id/fastQC/fastqc_postBBduk", mode: 'copy'
 
     input:
     tuple val(sample_id), path(postBBduk_read1), path(postBBduk_read2)
@@ -183,7 +130,7 @@ process assembly {
 
     tag "$sample_id"
     
-    publishDir "${params.results_dir}/$sample_id", mode: 'copy'
+    publishDir "${params.outdir}/$sample_id", mode: 'copy'
 
     input:
     tuple val(sample_id), path(postBBduk_inter)
@@ -215,7 +162,7 @@ process quantification {
 
     tag "$sample_id"
     
-    publishDir "${params.results_dir}/$sample_id", mode: 'copy'
+    publishDir "${params.outdir}/$sample_id", mode: 'copy'
 
     input:
     tuple val(sample_id), path(postBBduk_read1), path(postBBduk_read2), path(dir_spades)
@@ -244,7 +191,7 @@ process taxo_assign {
 
     tag "$sample_id"
 
-    publishDir "${params.results_dir}/$sample_id", mode: 'copy'
+    publishDir "${params.outdir}/$sample_id", mode: 'copy'
 
     input:
     tuple val(sample_id), path(dir_spades)
@@ -289,7 +236,7 @@ process taxo_table {
       cut -f2 ${output_diamond} > ${sample_id}_accession.txt
   
   # Associate taxIDs with accession IDs
-      grep -F -f ${sample_id}_accession.txt ${params.protaccession} > ${sample_id}.accession_taxid.txt
+      zgrep -F -f ${sample_id}_accession.txt ${params.prot_accession} > ${sample_id}.accession_taxid.txt
   
   # Extract taxIDs
       cut -f2 ${sample_id}.accession_taxid.txt > ${sample_id}.taxid.txt
@@ -306,7 +253,7 @@ process taxo_quanti {
 
     tag "$sample_id"
     
-    publishDir "${params.results_dir}/$sample_id", mode: 'copy'
+    publishDir "${params.outdir}/$sample_id", mode: 'copy'
 
     input:
     tuple val(sample_id), path(quanti_stats), path(output_diamond), path(taxid), path(taxo_table)
@@ -338,71 +285,98 @@ process taxo_quanti {
     """
 }
 
+//*************************************************
+// STEP 1 - HELP
+//*************************************************
+
+println header()
+if (params.help) { exit 0, helpMSG() }
+
+/*************************************************
+/ STEP 1 - PARAMS CHECK
+/************************************************/
+
 /*
  * Main workflow
  */
 workflow {
 
-    // Check input parameters
+    // -------------------------------- INPUT --------------------------------
+    // ---- CSV INPUT FILE
+    samples_ch = Channel.fromPath(params.input)
+            .splitCsv(header: true, sep: ',')
+            .map { row ->
+
+                // Check sample column
+                if ( row.sample == null ){ 
+                    error "The input ${input} file does not contain a 'sample' column!\n" 
+                } 
+                def sample_id    = row.sample
+
+                // Check input1/fastq1/read1 column
+                def fastq1 = row.input1?.trim() ?: row.fastq1?.trim() ?: row.read1?.trim()
+                if (!fastq1)
+                    error "The input ${params.input} file does not contain a 'input1' or 'fastq1' or 'read1' column!\n"
+                else
+                    fastq1 = file(fastq1)   
+                if (!ViroSeekUtils.is_url(fastq1) && !fastq1.exists())
+                    error "The input ${fastq1} file does not exist!\n"
+
+                if (ViroSeekUtils.is_url(fastq1))
+                    log.info "This fastq input is an URL: ${fastq1}"
+                
+                // Check input2/fastq2/read2 column
+                def paired = false;
+                def fastq2 = row.input2?.trim() ?: row.fastq2?.trim() ?: row.read2?.trim()
+                fastq2 = file(fastq2) 
+                if (fastq2) {
+                    paired = true
+                    if (!ViroSeekUtils.is_url(fastq2) && !fastq2.exists())
+                        error "The input ${fastq2} file does not exist!\n"
+                    if (ViroSeekUtils.is_url(fastq2))
+                        log.info "This fastq input is an URL: ${fastq2}"
+                }
+
+                // Create a tuple with metadata and reads
+                def meta = [ id: sample_id, paired: paired ]
+                def reads = paired ? [fastq1, fastq2] : fastq1
+
+                // Return only if the fastq file(s) extension are valid
+                if ( ViroSeekUtils.is_fastq(fastq1) && (!fastq2 || ViroSeekUtils.is_fastq(fastq2)) )
+                    return tuple(meta, reads)
+                else
+                    error "File(s) for sample ${sample_id} do not look like FASTQ"
+            }
+    // ---- DATABASES
     silva_ref = Channel.fromPath(params.silva_ref, checkIfExists: true)
                         .ifEmpty { exit 1, "Cannot find silva_ref file matching ${params.silva_ref}!\n" }
-    diamond_db = Channel.fromPath(params.diamond_db, checkIfExists: true)
-                        .ifEmpty { exit 1, "Cannot find diamond_db matching ${params.diamond_db}!\n" }
+    if (diamond_db_file ){
+        diamond_db = Channel.fromPath(params.diamond_db, checkIfExists: true)
+                            .ifEmpty { exit 1, "Cannot find diamond_db matching ${params.diamond_db}!\n" }
+    } else {
+        log.info "Diamond_db not provided, ViroSeek will prepare it for you!"
+        if (nr_db_file) {
+            nr_db = Channel.fromPath(params.nr_db, checkIfExists: true)
+                            .ifEmpty { exit 1, "Cannot find nr_db matching ${params.nr_db}!\n" }
+        } else {
+            exit 1, "Error: nr_db mandatory to prepare the DIAMOND database! You must provide either --diamond_db or --nr_db parameter!\n"
+        }
+    }
     prot_accession = Channel.fromPath(params.prot_accession, checkIfExists: true)
                         .ifEmpty { exit 1, "Cannot find prot_accession matching ${params.prot_accession}!\n" }
     taxonkit_dir = Channel.fromPath(params.taxonkit_dir, checkIfExists: true)
                         .ifEmpty { exit 1, "Cannot find taxonkit_dir matching ${params.taxonkit_dir}!\n" }
-    Channel.fromPath(params.input)
-            .splitCsv(header: true, sep: ',')
-             .map { row ->
-                // Check sample column
-                if ( row.sample == null ){ 
-                    error "The input ${input_csv} file does not contain a 'sample' column!\n" 
-                } 
-                def sample_id    = row.sample
-                                    
-                if(row.input_1 == null && row.fastq_1 == null){ 
-                        error "The input ${input_csv} file does not contain a 'input_1' or 'fastq_1' column!\n" 
-                }
-                // Check input_1/fastq_1 column
-                def fastq1;
-                if(row.input_1) {
-                    fastq1 = file(row.input_1.trim())
-                } else {
-                    fastq1 = file(row.fastq_1.trim())
-                }
-                if(! fastq1.toString().endsWith('bam')) {
-                    if (! AlineUtils.is_url(fastq1) ) {
-                                if (! fastq1.exists() ) {
-                                    error "The input ${fastq1} file does not does not exits!\n"
-                                }
-                    } else {
-                        log.info "This fastq input is an URL: ${fastq1}"
-                    }
-                    // Check input_2/fastq_2 column
-                    def fastq2;
-                    if(row.input_2) {
-                        fastq2 = file(row.input_2.trim())
-                    } else if (row.fastq_2) {
-                        fastq2 = file(row.fastq_2.trim())
-                    }
-                    if (fastq2){
-                        if ( ! AlineUtils.is_url(fastq2) ) {
-                            if (! fastq2.exists() ) {
-                                error "The input ${fastq2} file does not does not exits!\n"
-                            }
-                        } else {
-                            log.info "This fastq input is an URL: ${fastq1}"
-                        }
-                    }
-            .set { samples_ch }
+
+
 
     // Run FastQC pre-trimming
-    samples_ch | fastqc_pretrim
+    samples_ch.view()
+    fastqc_raw(samples_ch, "fastQC/fastqc_pretrim", "raw")
 
     // Run trimming and capture output channel
-    trimmed_ch = samples_ch | trimming
+   // trimmed_ch = samples_ch | trimming
 
+/*
     // FastQC post trimming using trimmed reads
     trimmed_ch | fastqc_posttrim
 
@@ -430,7 +404,7 @@ workflow {
     .map { sample_id, quant_stats, diamond_file, taxid, taxo_table -> tuple(sample_id, quant_stats, diamond_file, taxid, taxo_table) }
 
     jointaxoquanti_ch | taxo_quanti
-    
+    */
 }
 
 //*************************************************
@@ -458,7 +432,7 @@ def header(){
     ${c_blue} |   | ${c_white}|  | \\ `'   /${c_red}|  (_.\\.' /${c_reset}
     ${c_blue} |   | ${c_white}|  |  \\    / ${c_red}|       .'${c_reset}
     ${c_blue} '---' ${c_white}''-'   `'-'  ${c_red}'-----'`${c_reset}
-    ${c_purple} ViroSeek - Viral detection pipeline for second-generation sequencing - v${workflow.manifest.version}${c_reset}
+    ${c_purple}ViroSeek - Viral detection pipeline for second-generation sequencing - v${workflow.manifest.version}${c_reset}
     ${c_white}${workflow.manifest.author}${c_reset}
     -${c_dim}--------------------------------------------------${c_reset}-
     """.stripIndent()
@@ -477,7 +451,7 @@ def helpMSG() {
         assignment must be provided by the user.
 
         Usage example:
-        nextflow run ViroSeek.nf --input /path/to/file.csv --trimming trimgalore --aligner bbmap,bowtie2 --fastqc true
+        nextflow run ViroSeek.nf --input /path/to/file.csv --trimming trimgalore -profile singularity
 
         --help                      prints the help section
 
@@ -489,11 +463,11 @@ def helpMSG() {
             --silva_ref             Path to the SILVA reference file for BBduk (fasta format)
             --diamond_db            Path to the DIAMOND database file (ncbi-nr.taxonomy.dmnd)
             --prot_accession        Path to the prot.accession2taxid.txt file from NCBI (ftp://ftp.ncbi.nlm.nih.gov/pub/taxonomy/accession2taxid/prot.accession2taxid.gz)
-            --taxonkit_dir             Path to the TaxonKit files (download and uncompress from https://bioinf.shenwei.me/taxonkit/)
+            --taxonkit_dir          Path to the TaxonKit files (download and uncompress from https://bioinf.shenwei.me/taxonkit/)
 
     Optional parameters
         General
-            --results_dir           Path to output results directory. Default: results
+            --outdir                Path to output results directory. Default: results
 
         Trimming
             --trimming              Tools to use to trim among this list ${trimming_tools} [trimgalore, fastp]. Empty is accepted and means no trimming.
@@ -525,14 +499,14 @@ workflow.onComplete {
     c_red = params.monochrome_logs ? '' : "\033[0;31m";
 
     if (workflow.success) {
-        log.info "\n${c_green}    AliNe pipeline complete!${c_reset}"
+        log.info "\n${c_green}    ViroSeek pipeline complete!${c_reset}"
     } else {
         log.error "${c_red}Oops .. something went wrong${c_reset}"
     }
 
     log.info "    The results are available in the ‘${params.outdir}’ directory."
     log.info """
-    AliNe Pipeline execution summary
+    ViroSeek Pipeline execution summary
     --------------------------------------
     Completed at : ${workflow.complete}
     UUID         : ${workflow.sessionId}

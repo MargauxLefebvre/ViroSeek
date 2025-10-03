@@ -1,0 +1,2 @@
+sample,fastq1,fastq2
+test2,https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR124/027/ERR12421927/ERR12421927_1.fastq.gz,https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR124/027/ERR12421927/ERR12421927_2.fastq.gz

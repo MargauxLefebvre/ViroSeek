@@ -36,21 +36,22 @@ class ViroSeekUtils {
     *
     * @param paramValue  the parameter value (URL or local path)
     * @param label       human-readable name used in error messages
-    * @return            a Nextflow file() handle, or null when paramValue is null/empty
+    * @return            a Nextflow file, or null when paramValue is null/empty
     */
-    static def resolveFile(paramValue, String label) {
+    public static String resolveFile(paramValue, String label) {
         if (!paramValue) return null
-
+        
+        def ref_file = null
         if (is_url(paramValue)) {
             ref_file = file(paramValue)
             ref_file = ref_file.getName()
         } else {
             def f = new File(paramValue)
             if (!f.exists()) {
-                exit 1, "Error: ${label} file <${paramValue}> does not exist.\n"
+                throw new RuntimeException("Error: ${label} file <${paramValue}> does not exist.")
             }
             ref_file = f.getName()
-            return ref_file
         }
+        return ref_file
     }
 }

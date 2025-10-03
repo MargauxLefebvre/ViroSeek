@@ -128,10 +128,11 @@ tar xfz taxdump.tar.gz
 mkdir taxonkit
 cp *.dmp taxonkit/
 
-# Download the accession-to-taxonomy mapping (this file maps protein accession numbers to NCBI Taxonomy IDs) >150Go.
+# Download the accession-to-taxonomy mapping (this file maps protein accession numbers to NCBI Taxonomy IDs) >150Go uncompressed. Uncompress and keep compressed one too for DIAMOND
 wget ftp://ftp.ncbi.nih.gov/pub/taxonomy/accession2taxid/prot.accession2taxid.FULL.gz
- 
+
 # Create a DIAMOND database with taxonomy mapping
+# --taxonmap accepts compressed and uncompressed input
 gunzip -c nr.gz | sed '/^>/s/ .*//' | diamond makedb --threads 16 \
   --taxonmap prot.accession2taxid.FULL.gz \
   --taxonnames names.dmp \
@@ -139,19 +140,6 @@ gunzip -c nr.gz | sed '/^>/s/ .*//' | diamond makedb --threads 16 \
   --db ncbi-nr.taxonomy.dmnd #name of the output DIAMOND database
 
 ```
-
-**Note:**
-
-When building the DIAMOND database in June 2025, we encountered a
-compatibility issue between the NCBI taxonomy files and DIAMOND (see
-[issue \#352](https://github.com/bbuchfink/diamond/issues/352)).
-Specifically, the NCBI taxonomy (nodes.dmp) included taxonomic ranks
-such as domain and realm, which were not recognized by DIAMOND. To
-resolve this, we replaced these terms before creating the database:
-`sed -i 's/domain/superkingdom/g' nodes.dmp` and
-`sed -i 's/realm/kingdom/g' nodes.dmp`. These replacements ensure
-compatibility with DIAMOND expected taxonomy rank names during database
-creation.
 
 # Usage
 
@@ -176,7 +164,7 @@ To activate the Conda environment, use the following profile:
 | Parameter | Default value | Description |
 |----|----|----|
 | `-work-dir` | `./work` | Directory for Nextflow’s temporary working files. |
-| `--results_dir` | `./results` | Directory where output results are saved. |
+| `--outdir` | `./results` | Directory where output results are saved. |
 | `--length_seq` | `0` | Minimum length (in bp) to keep contigs after SPAdes assembly. Use `0` to **keep all** contigs without filtering. |
 | `--diam_evalue` | `0.001` | Maximum **e-value** for DIAMOND alignment hits. Lower values increase stringency. |
 | `--diam_id` | `0` | Minimum **percent identity** required for DIAMOND hits (0–100). |
@@ -193,7 +181,7 @@ Here’s an example command:
 ``` bash
 nextflow run ViroSeek.nf --input '/path/to/samples.csv' -profile conda_env,slurm \
   -work-dir '/your/work_dir/' \
-  --results_dir '/your/results_dir/' \
+  --outdir '/your/results/dir/' \
   --silvaref '/path/to/SILVA/fasta/SILVA.DB.fasta' \
   --diamond_db '/path/to/ncbi-nr.taxonomy.dmnd' \
   --protaccession '/path/to/prot.accession2taxid.txt' \
