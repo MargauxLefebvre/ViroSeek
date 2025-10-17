@@ -1,25 +1,24 @@
 /*
- * Process: Build DIAMOND database
+ * Process: Taxonomic assignation with diamond
  */
-process build_diamond_db {
+process taxo_assign_diamond {
+    tag "$meta.id"
     label 'diamond'
-    tag "${meta.id}"
-    publishDir "${params.outdir}/${meta.id}/fastQC/fastqc_pretrim", mode: 'copy'
+
+    publishDir "${params.outdir}/$meta.id", mode: 'copy'
 
     input:
-        tuple val(meta), path(reads)
-
+        tuple val(meta), path(assemby)
+        path(diamond_db)
 
     output:
-        path ("*logs")
-
+        tuple val(meta), path("*.tsv")
 
     script:
 
-        def sample_id = meta.id
-
-        """
-        mkdir -p ${sample_id}_fastqc_pre
-        fastqc -t ${task.cpus} -q ${reads} -o ${sample_id}_fastqc_pre
-        """
+    """
+    diamond blastx -p ${task.cpus} -d ${diamond_db} -q ${assemby} \
+        -o ${meta.id}_diamond_blastx.tsv --max-target-seqs 1 -e ${params.diam_evalue} --id ${params.diam_id} \
+        --query-cover ${params.diam_querycov} --range-culling -F 15 ${params.diam_sensi}
+    """
 }

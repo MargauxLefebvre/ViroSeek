@@ -20,7 +20,7 @@ process fastqc {
         def add_suffix = suffix ? "_${suffix}_" : '_'
 
         """
-        mkdir fastqc_${meta.id}${add_suffix}logs
+        mkdir ${meta.id}${add_suffix}logs
         fastqc -t ${task.cpus} -o ${meta.id}${add_suffix}logs -q ${reads}
         """
 }

@@ -1,7 +1,7 @@
 /*
  * Process: Trimming by Trimgalore
  */
-process trimming {
+process trim_trimgalore {
     label 'trimgalore'
     tag "${meta.id}"
 
@@ -9,7 +9,7 @@ process trimming {
         tuple val(meta), path(reads)
 
     output:
-        tuple val(meta.id), path("trimgalore/${sample_id}/*.fq.gz"), emit: trimmed
+        tuple val(meta), path("trimgalore/${sample_id}/*.fq.gz"), emit: trim
 
     script:
         

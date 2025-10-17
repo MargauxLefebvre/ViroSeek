@@ -99,11 +99,12 @@ Below, we explain how to create the SILVA reference database used for
 this filtering.
 
 ``` bash
-# Download the references database
-wget -c https://www.arb-silva.de/fileadmin/silva_databases/release_138_2/ARB_files/SILVA_138.2_SSURef_NR99_03_07_24_opt.arb.gz
-wget -c https://www.arb-silva.de/fileadmin/silva_databases/release_138_2/ARB_files/SILVA_138.2_LSURef_NR99_03_07_24_opt.arb.gz
+# Download the references database from https://www.arb-silva.de
+wget -c https://www.arb-silva.de/fileadmin/silva_databases/current/Exports/SILVA_138.2_LSURef_NR99_tax_silva.fasta.gz
+wget -c https://www.arb-silva.de/fileadmin/silva_databases/current/Exports/SILVA_138.2_SSURef_NR99_tax_silva.fasta.gz
 # Merge the database together (>650Mo)
-cat SILVA_138.2*.gz | gunzip -c > SILVA.fasta
+zcat SILVA_138.2_LSURef_NR99_tax_silva.fasta.gz SILVA_138.2_SSURef_NR99_tax_silva.fasta.gz | gzip > SILVA.fa
+#gunzip -c SILVA_138.2*.arb.gz > SILVA.fa
 ```
 
 ### Diamond and Taxonkit
@@ -116,27 +117,27 @@ preparing the necessary files used by TaxonKit to enable taxonomy
 assignment.
 
 ``` bash
-conda activate ViroSeek # to have the same Diamond version than the one used in the pipeline
-
-# Fetch the non-redundant (NR) protein database in FASTA format from NCBI. >186Go
-wget ftp://ftp.ncbi.nih.gov/blast/db/FASTA/nr.gz
- 
 # Download and untar the taxonomy dump (essential for linking protein sequences to taxonomic information with Taxonkit).
+mkdir -p taxonkit
 wget ftp://ftp.ncbi.nlm.nih.gov/pub/taxonomy/taxdump.tar.gz
-tar xfz taxdump.tar.gz
-# Make the directory for Taxonkit and transfert the accession-to-taxonomy mapping files
-mkdir taxonkit
-cp *.dmp taxonkit/
+tar -xzf taxdump.tar.gz -C taxonkit
 
 # Download the accession-to-taxonomy mapping (this file maps protein accession numbers to NCBI Taxonomy IDs) >150Go uncompressed. Uncompress and keep compressed one too for DIAMOND
 wget ftp://ftp.ncbi.nih.gov/pub/taxonomy/accession2taxid/prot.accession2taxid.FULL.gz
+gunzip ftp://ftp.ncbi.nih.gov/pub/taxonomy/accession2taxid/prot.accession2taxid.FULL.gz
 
-# Create a DIAMOND database with taxonomy mapping
+# ----- Create a DIAMOND database with taxonomy mapping ~ 3h with 32 CPU - ~365 Go -----
 # --taxonmap accepts compressed and uncompressed input
-gunzip -c nr.gz | sed '/^>/s/ .*//' | diamond makedb --threads 16 \
+# use diamond >= v2.1.12 to avoid new NCBI taxonomic ranks "cellular root", "acellular root", "domain" and "realm".
+# /!\ Be careful to use same DIAMOND version than the one used by ViroSeek (see config/softwares.config file).
+
+# First fetch the non-redundant (NR) protein database in FASTA format from NCBI. >186Go
+wget ftp://ftp.ncbi.nih.gov/blast/db/FASTA/nr.gz
+# Now make the diamon DB
+gunzip -c nr.gz | sed '/^>/s/ .*//' | diamond makedb --threads 32 \
   --taxonmap prot.accession2taxid.FULL.gz \
-  --taxonnames names.dmp \
-  --taxonnodes nodes.dmp \
+  --taxonnames taxonkit/names.dmp \
+  --taxonnodes taxonkit/nodes.dmp \
   --db ncbi-nr.taxonomy.dmnd #name of the output DIAMOND database
 
 ```

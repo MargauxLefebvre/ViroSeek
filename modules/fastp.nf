@@ -1,33 +1,31 @@
 /*
 Here are described all processes related to fastp
-fastp is a tool designed to provide fast all-in-one preprocessing for FastQ files.
+fastp is a tool designed to provide fast all-in-one preprocessing for reads files.
 See https://github.com/OpenGene/fastp
 */
  
  
-process fastp {
+process trim_fastp {
     label 'fastp'
     tag "${meta.id}"
-    publishDir "${params.outdir}/${outpath}", mode: 'copy'
    
     input:
-        tuple val(meta), path(fastq)
-        val outpath
+        tuple val(meta), path(reads)
 
     output:
-        tuple val(meta), path("*_trim.fastq.gz"), emit: trimmed
-        path("${meta.id}_fastp_report.html"), emit: report
+        tuple val(meta), path("*_trim.reads.gz"), emit: trim
+        path("${meta.id}_fastp_report.html"), emit: trim_report
    
     script:
 
         // set input/output according to short_paired parameter
-        def input = "-i ${fastq[0]}" 
-        def fastqBase0 = ViroSeekUtils.getCleanName(fastq[0])
-        def output = "-o ${fastqBase0}_trim.fastq.gz" 
+        def input = "-i ${reads[0]}" 
+        def readsBase0 = ViroSeekUtils.getCleanName(reads[0])
+        def output = "-o ${readsBase0}_trim.reads.gz" 
         if ( meta.paired ){
-            def fastqBase1 = ViroSeekUtils.getCleanName(fastq[1])
-            input = "-i ${fastq[0]} -I ${fastq[1]}"
-            output = "-o ${fastqBase0}_trim.fastq.gz -O ${fastqBase1}_trim.fastq.gz"
+            def readsBase1 = ViroSeekUtils.getCleanName(reads[1])
+            input = "-i ${reads[0]} -I ${reads[1]}"
+            output = "-o ${readsBase0}_trim.reads.gz -O ${readsBase1}_trim.reads.gz"
         }
 
         """
