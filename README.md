@@ -20,7 +20,7 @@ assignment must be provided by the user.
         * [SILVA](#silva)
         * [Diamond and Taxonkit](#diamond-and-taxonkit)
   * [Usage](#usage)
-    * [Paramters](#parameters)
+    * [Parameters](#parameters)
       * [Mandatory parameters](#mandatory-parameters)
       * [Optional parameters](#optional-parameters)
     * [Example](#example)
@@ -76,7 +76,6 @@ Please follow the instructions at the [Docker website](https://docs.docker.com/d
 ### Singularity
 
 Please follow the instructions at the [Singularity website](https://docs.sylabs.io/guides/latest/admin-guide/installation.html)
-
 
 ## Softwares
 
@@ -155,7 +154,6 @@ gunzip -c nr.gz | sed '/^>/s/ .*//' | diamond makedb --threads 32 \
 | `--diamond_db` | Path to the **DIAMOND-formatted database** for protein sequence taxonomic assignment. ([DIAMOND setup](https://github.com/MargauxLefebvre/ViroSeek#diamond-and-taxonkit)) |
 | `--protaccession` | Path to **`prot.accession2taxid.txt`** (uncompressed) from NCBI, used to map accession numbers to Taxonomy IDs. ([DIAMOND setup](https://github.com/MargauxLefebvre/ViroSeek#diamond-and-taxonkit)) |
 | `--taxon_dir` | Path to a directory containing **NCBI taxonomy dump files** (`names.dmp`, `nodes.dmp`, etc.) used by TaxonKit. ([DIAMOND setup](https://github.com/MargauxLefebvre/ViroSeek#diamond-and-taxonkit)) |
-| `--spadesbin` | Path to the **SPAdes binary folder**, which must contain `spades.py`. ([Installation guide](https://github.com/MargauxLefebvre/ViroSeek#install-the-software-for-the-pipeline)) |
 
 To activate the Conda environment, use the following profile:
 `-profile conda_env`.
@@ -166,6 +164,8 @@ To activate the Conda environment, use the following profile:
 |----|----|----|
 | `-work-dir` | `./work` | Directory for Nextflow’s temporary working files. |
 | `--outdir` | `./results` | Directory where output results are saved. |
+| `--trim` | (empty) | Tools to use to trim: `trimgalore`, `fastp`. Empty is accepted and means no trimming. |
+| `--trim_opt` | (empty) | Option to set to trimming tool chosen |
 | `--length_seq` | `0` | Minimum length (in bp) to keep contigs after SPAdes assembly. Use `0` to **keep all** contigs without filtering. |
 | `--diam_evalue` | `0.001` | Maximum **e-value** for DIAMOND alignment hits. Lower values increase stringency. |
 | `--diam_id` | `0` | Minimum **percent identity** required for DIAMOND hits (0–100). |
@@ -180,14 +180,14 @@ with the `-c' option '/path/to/the/nextflow.config'`.
 Here’s an example command:
 
 ``` bash
-nextflow run ViroSeek.nf --input '/path/to/samples.csv' -profile conda_env,slurm \
+nextflow run ViroSeek.nf --input '/path/to/samples.csv' -profile singularity,slurm \
   -work-dir '/your/work_dir/' \
   --outdir '/your/results/dir/' \
+  --trim 'trimgalore' \
   --silvaref '/path/to/SILVA/fasta/SILVA.DB.fasta' \
   --diamond_db '/path/to/ncbi-nr.taxonomy.dmnd' \
   --protaccession '/path/to/prot.accession2taxid.txt' \
   --taxon_dir '/path/to/Taxonkit/directory' \
-  --spadesbin '/path/to/SPAdes/bin' \
   --length_seq 140 \
   --diam_evalue 1e-5 \
   --diam_id 96.0 \
@@ -195,19 +195,22 @@ nextflow run ViroSeek.nf --input '/path/to/samples.csv' -profile conda_env,slurm
   --diam_sensi '--very-sensitive'
 ```
 
-*Replace file paths and profiles as needed for your environment.*
+*Replace file paths and profiles as needed*
 
 ## Profiles 
+
+### Profiles for the containers
+
+- For Docker, use `-profile docker`
+- For singularity, use `-profile singularity`
 
 ### Profiles for HPC environments
 
 - For SLURM, use `-profile slurm`
 - For SGE, use `-profile sge`
-- If running on the [IFB
-  cluster](https://www.france-bioinformatique.fr/en/ifb-core-cluster/),
-  use `-profile conda_IFB` to load properly the Conda environment
+- For local use with more limited resources,  use `-profile local`
 
-### What if a job stops and I want to restart it?
+## What if a job stops and I want to restart it?
 
 One of Nextflow key strengths is its ability to resume from where it
 left off after a failure or interruption. By default your pipeline will restart

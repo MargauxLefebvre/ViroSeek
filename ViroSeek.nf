@@ -18,7 +18,7 @@ taxonkit_dir   = ''         // Path to the TaxonKit files (download and uncompre
 
 // Trim
 trim           = ''          // Tools to use to trim [trimgalore, fastp]. Empty is accepted and means no trimming.
-trim_opt       = ''          // option to set to trimming tool choosen
+trim_opt       = ''          // option to set to trimming tool chosen
 
 // Assembly
 length_seq     = '0'         // Minimum contig length to keep after assembly (default 0, no filtering)
@@ -52,7 +52,7 @@ if (params.trim && !trimming_tools.contains(params.trim)) {
 
 // chck sensi flag for diamond
 if (params.diam_sensi && !valid_sensi_flags.contains(params.diam_sensi)) {
-    exit 1, "Error: DIAMOND sensi flag (--diam_sensi) ${params.diam_sensi} not recognized! Choose among this list: ${trimming_tools} or let it empty!\n"
+    exit 1, "Error: DIAMOND sensi flag (--diam_sensi) ${params.diam_sensi} not recognized! Choose among this list: ${valid_sensi_flags} or let it empty!\n"
 }
 
 /*************************************************
@@ -271,7 +271,7 @@ def helpMSG() {
 
         Trimming
             --trim                  Tools to use to trim among this list ${trimming_tools} [trimgalore, fastp]. Empty is accepted and means no trimming.
-            --trim_opt.             Option to be used by the trimming tool choosen
+            --trim_opt              Option to be used by the trimming tool chosen
 
         Assembly
             --length_seq            Minimum contig length to keep after assembly (default 0, no filtering)
