@@ -1,5 +1,6 @@
 ViroSeek
 ================
+<img align="right" src="docs/img/IRD.png" width="200" height="66" /> <img align="right" src="docs/img/MIVEGEC.png" width="100" height="66" />
 
 ViroSeek is a pipeline designed for the analysis of target-enriched
 libraries, with specific optimization for managing high PCR duplicate
