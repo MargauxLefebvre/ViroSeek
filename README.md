@@ -149,11 +149,11 @@ gunzip -c nr.gz | sed '/^>/s/ .*//' | diamond makedb --threads 32 \
 
 | Parameter | Description |
 |----|----|
-| `--input` | Path to a **CSV file** with 3 columns: `sample,read1,read2.`. Each row represents a paired-end sample. |
-| `--silvaref` | Path to the **SILVA ribosomal DNA reference** FASTA file used for rRNA read filtration with BBduk. ([SILVA setup](https://github.com/MargauxLefebvre/ViroSeek#silva)) |
+| `--input` | Path to a **CSV file** with 3 columns (with a header): `sample,read1,read2.`. Each row represents a paired-end sample. |
+| `--silva_ref` | Path to the **SILVA ribosomal DNA reference** FASTA file used for rRNA read filtration with BBduk. ([SILVA setup](https://github.com/MargauxLefebvre/ViroSeek#silva)) |
 | `--diamond_db` | Path to the **DIAMOND-formatted database** for protein sequence taxonomic assignment. ([DIAMOND setup](https://github.com/MargauxLefebvre/ViroSeek#diamond-and-taxonkit)) |
-| `--protaccession` | Path to **`prot.accession2taxid.txt`** (uncompressed) from NCBI, used to map accession numbers to Taxonomy IDs. ([DIAMOND setup](https://github.com/MargauxLefebvre/ViroSeek#diamond-and-taxonkit)) |
-| `--taxon_dir` | Path to a directory containing **NCBI taxonomy dump files** (`names.dmp`, `nodes.dmp`, etc.) used by TaxonKit. ([DIAMOND setup](https://github.com/MargauxLefebvre/ViroSeek#diamond-and-taxonkit)) |
+| `--prot_accession` | Path to **`prot.accession2taxid.txt`** (uncompressed) from NCBI, used to map accession numbers to Taxonomy IDs. ([DIAMOND setup](https://github.com/MargauxLefebvre/ViroSeek#diamond-and-taxonkit)) |
+| `--taxonkit_dir` | Path to a directory containing **NCBI taxonomy dump files** (`names.dmp`, `nodes.dmp`, etc.) used by TaxonKit. ([DIAMOND setup](https://github.com/MargauxLefebvre/ViroSeek#diamond-and-taxonkit)) |
 
 To activate the Conda environment, use the following profile:
 `-profile conda_env`.
@@ -188,11 +188,8 @@ nextflow run ViroSeek.nf --input '/path/to/samples.csv' -profile singularity,slu
   --diamond_db '/path/to/ncbi-nr.taxonomy.dmnd' \
   --protaccession '/path/to/prot.accession2taxid.txt' \
   --taxon_dir '/path/to/Taxonkit/directory' \
-  --length_seq 140 \
-  --diam_evalue 1e-5 \
-  --diam_id 96.0 \
-  --diam_querycov 51.0 \
-  --diam_sensi '--very-sensitive'
+  --length_seq 140 --diam_evalue 1e-5 --diam_id 96.0 --diam_querycov 51.0 \
+  --diam_sensi='--fast'
 ```
 
 *Replace file paths and profiles as needed*
