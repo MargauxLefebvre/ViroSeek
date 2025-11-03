@@ -4,8 +4,6 @@
 process quantification_minimap2 {
     label 'minimap2'
     tag "${meta.id}"
-    
-    publishDir "${params.outdir}/$meta.id", mode: 'copy'
 
     input:
         tuple val(meta), path(reads), path(assembly)
