@@ -183,9 +183,12 @@ workflow {
     
 
     //Taxonomic assignation
-    diamond_ch = taxo_assign_diamond(assembly_ch.assembly_only, diamond_db)
-    prepare_taxonkit_grep(diamond_ch, prot_accession)
-    taxo_table_taxonkit(prepare_taxonkit_grep.out.taxid, taxonkit_dir)
+    diamond_db_ch = Channel.value(file(params.diamond_db))
+    diamond_ch = taxo_assign_diamond(assembly_ch.assembly_only, diamond_db_ch)
+    prot_accession_ch = Channel.value(file(params.prot_accession))
+    prepare_taxonkit_grep(diamond_ch, prot_accession_ch)
+    taxonkit_dir_ch   = Channel.value(file(params.taxonkit_dir))
+    taxo_table_taxonkit(prepare_taxonkit_grep.out.taxid, taxonkit_dir_ch)
 
     taxo_table_taxonkit.out.taxo_table.map { meta, accession_taxid_txt, taxo_table_txt -> tuple(meta.id, meta, accession_taxid_txt, taxo_table_txt) }
         .join(diamond_ch.map { meta, diamond_file_tsv -> tuple(meta.id, meta, diamond_file_tsv) })
