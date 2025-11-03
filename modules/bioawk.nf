@@ -18,6 +18,6 @@ process filter_assembly_bioawk{
         """
         # Filter the assembly
         bioawk -c fastx '{ if(length(\$seq) > ${params.length_seq}) { print ">"\$name; print \$seq }}' \
-        assembly_spades/contigs.fasta > contigs.filtered.fasta
+        assembly_spades/contigs.fasta > ${meta.id}_contigs.filtered.fasta
         """
 }
