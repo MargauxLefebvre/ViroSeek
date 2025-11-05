@@ -155,9 +155,6 @@ gunzip -c nr.gz | sed '/^>/s/ .*//' | diamond makedb --threads 32 \
 | `--prot_accession` | Path to **`prot.accession2taxid.txt`** (uncompressed) from NCBI, used to map accession numbers to Taxonomy IDs. ([DIAMOND setup](https://github.com/MargauxLefebvre/ViroSeek#diamond-and-taxonkit)) |
 | `--taxonkit_dir` | Path to a directory containing **NCBI taxonomy dump files** (`names.dmp`, `nodes.dmp`, etc.) used by TaxonKit. ([DIAMOND setup](https://github.com/MargauxLefebvre/ViroSeek#diamond-and-taxonkit)) |
 
-To activate the Conda environment, use the following profile:
-`-profile conda_env`.
-
 ### Optional parameters
 
 | Parameter | Default value | Description |
