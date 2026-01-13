@@ -9,7 +9,7 @@ process trim_trimgalore {
         tuple val(meta), path(reads)
 
     output:
-        tuple val(meta), path("trimgalore/${sample_id}/*.fq.gz"), emit: trim
+        tuple val(meta), path("trimgalore/${meta.id}/*.fq.gz"), emit: trim
 
     script:
         
@@ -18,7 +18,7 @@ process trim_trimgalore {
         """
         mkdir -p trimgalore/${meta.id}
         trim_galore ${paired_opt} --cores ${task.cpus} --gzip \
-            --output_dir trimgalore/${sample_id} \
+            --output_dir trimgalore/${meta.id} \
             ${read_args}
         """
 }
