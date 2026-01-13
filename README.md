@@ -178,10 +178,16 @@ with the `-c' option '/path/to/the/nextflow.config'`.
 
 ## Example
 
-Here’s an example command:
+To get help run:
+
+```bash
+nextflow run MargauxLefebvre/ViroSeek -r v0.0.1 --help
+```
+
+A typical command might look like the following:
 
 ``` bash
-nextflow run ViroSeek.nf --input '/path/to/samples.csv' -profile singularity,slurm \
+nextflow run MargauxLefebvre/ViroSeek -r v0.0.1 --input '/path/to/samples.csv' -profile singularity,slurm \
   -work-dir '/your/work_dir/' \
   --outdir '/your/results/dir/' \
   --trim 'trimgalore' \
@@ -197,6 +203,27 @@ nextflow run ViroSeek.nf --input '/path/to/samples.csv' -profile singularity,slu
 ```
 
 *Replace file paths and profiles as needed*
+
+**Note:** 
+
+The command `nextflow run MargauxLefebvre/ViroSeek -r v0.0.1` allows you to run the pipeline directly from the v0.0.1 release without any manual installation (apart from the required dependencies, i.e. Nextflow and a supported container platform; see the [Installation](#installation) section). Nextflow automatically downloads and manages the pipeline code locally.
+
+Alternatively, you can clone the repository and run the pipeline from a local copy. In this case, the command becomes `nextflow run ViroSeek.nf. Follow the steps below:
+
+```
+# clone the repository
+git clone https://github.com/MargauxLefebvre/ViroSeek.git
+
+# move into the repository
+cd ViroSeek
+
+# run the pipeline (example: display help)
+nextflow run ViroSeek.nf --help
+```
+
+
+
+If running the pipeline from the repository after a local clone 
 
 ## Profiles 
 
