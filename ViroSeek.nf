@@ -36,6 +36,13 @@ params.help = null
 params.debug = false
 
 /*************************************************
+/ HELP
+/*************************************************/
+
+println header()
+if (params.help) { exit 0, helpMSG() }
+
+/*************************************************
 / STEP 1 - check parameters
 /*************************************************/
 
@@ -69,13 +76,6 @@ include {samtools_sam2sortedbam; samtools_markdup; samtools_idxstats} from "$bas
 include {assembly_spades} from "$baseDir/modules/spades.nf"
 include {taxo_table_taxonkit} from "$baseDir/modules/taxonkit.nf"
 include {trim_trimgalore} from "$baseDir/modules/trimgalore.nf"
-
-/*************************************************
-/ STEP 3 - HELP
-/*************************************************/
-
-println header()
-if (params.help) { exit 0, helpMSG() }
 
 /*************************************************
 / STEP 4 - MAIN WORKFLOW
