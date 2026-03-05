@@ -247,3 +247,7 @@ your system before rerunning.
 ## Contributing
 
 Contributions from the community are welcome ! See the [Contributing guidelines](https://github.com/MargauxLefebvre/ViroSeek/blob/main/CONTRIBUTING.md)
+
+## How to cite
+
+If you use ViroSeek, please cite: **ViroSeek: a viral detection pipeline for second-generation sequencing** by Audric Berger, Margaux J. M. Lefebvre, Jacques Dainat, Davy Jiolle, Isabelle Conclois, Loic Talignani, Emilio Mastriani, Sylvie Cornelie, Nicolas Berthet, Christophe Paupy. [Preprint available](https://doi.org/10.64898/2026.03.04.706323)
