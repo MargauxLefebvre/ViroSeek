@@ -30,6 +30,7 @@ diam_id        = '0'         // Minimum percentage identity for Diamond (default
 diam_querycov  = '0'  
 
 // Other
+params.skip_dedup = false
 trimming_tools = [ 'trimgalore', 'fastp' ]
 valid_sensi_flags = [ '--faster', '--fast', '--mid-sensitive', '--sensitive', '--more-sensitive', '--very-sensitive', '--ultra-sensitive' ]
 params.help = null
@@ -176,11 +177,15 @@ workflow {
     samtools_sam2sortedbam(quantification_minimap2.out.sam_file)
     fastqc_align(samtools_sam2sortedbam.out.bam_file, "fastQC/fastqc_align", "align")
     logs.concat(fastqc_align.out).set{logs} // save log
+    // Deduplicatiom option
+    if( !params.skip_dedup ) {
     samtools_markdup(samtools_sam2sortedbam.out.bam_file)
     fastqc_dedup(samtools_markdup.out.bam_dedup_file, "fastQC/fastqc_dedup", "dedup")
     logs.concat(fastqc_dedup.out).set{logs} // save log
     samtools_idxstats(samtools_markdup.out.bam_dedup_file)
-    
+    } else {
+      samtools_idxstats(samtools_sam2sortedbam.out.bam_file)
+    }
 
     //Taxonomic assignation
     diamond_ch = taxo_assign_diamond(assembly_ch.assembly_only, diamond_db.collect())

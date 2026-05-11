@@ -163,7 +163,8 @@ gunzip -c nr.gz | sed '/^>/s/ .*//' | diamond makedb --threads 32 \
 | `-work-dir` | `./work` | Directory for Nextflow’s temporary working files. |
 | `--outdir` | `./results` | Directory where output results are saved. |
 | `--trim` | (empty) | Tools to use to trim: `trimgalore`, `fastp`. Empty is accepted and means no trimming. |
-| `--trim_opt` | (empty) | Option to set to trimming tool chosen |
+| `--trim_opt` | (empty) | Option to set to trimming tool chosen. |
+| `--skip_dedup` | false | Skip the deduplication step with `samtools markdup`. |
 | `--length_seq` | `0` | Minimum length (in bp) to keep contigs after SPAdes assembly. Use `0` to **keep all** contigs without filtering. |
 | `--diam_evalue` | `0.001` | Maximum **e-value** for DIAMOND alignment hits. Lower values increase stringency. |
 | `--diam_id` | `0` | Minimum **percent identity** required for DIAMOND hits (0–100). |
