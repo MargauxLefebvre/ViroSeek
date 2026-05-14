@@ -13,7 +13,6 @@ outdir         = 'results' // Path to output results
 // Database
 silva_ref      = ''         // Path to the SILVA reference file for BBduk (fasta format)
 diamond_db     = ''         // Path to the Diamond database file (ncbi-nr.taxonomy.dmnd)
-prot_accession = ''         // Path to the prot.accession2taxid.txt file from NCBI (ftp://ftp.ncbi.nlm.nih.gov/pub/taxonomy/accession2taxid/prot.accession2taxid.gz)
 taxonkit_dir   = ''         // Path to the TaxonKit files (download and uncompress from https://bioinf.shenwei.me/taxonkit/)
 
 // Trim
@@ -50,7 +49,6 @@ if (params.help) { exit 0, helpMSG() }
 // ---- check SILVA file
 def silva_ref_file        = ViroSeekUtils.resolveFile(params.silva_ref, "silva_ref")
 def diamond_db_file       = ViroSeekUtils.resolveFile(params.diamond_db, "diamond_db")
-def prot_accession_file   = ViroSeekUtils.resolveFile(params.prot_accession, "prot_accession")
 def taxonkit_dir_file     = ViroSeekUtils.resolveFile(params.taxonkit_dir, "taxonkit_dir")
 
 // check trimming tool
@@ -66,7 +64,7 @@ if (params.diam_sensi && !valid_sensi_flags.contains(params.diam_sensi)) {
 /*************************************************
 / STEP 2 - Include needed modules
 /*************************************************/
-include {prepare_taxonkit_grep; taxo_quanti} from "$baseDir/modules/bash.nf"
+include {prepare_taxonkit; taxo_quanti} from "$baseDir/modules/bash.nf"
 include {filtering_bbduk} from "$baseDir/modules/bbmap.nf"
 include {filter_assembly_bioawk} from "$baseDir/modules/bioawk.nf"
 include {taxo_assign_diamond} from "$baseDir/modules/diamond.nf"
@@ -135,8 +133,6 @@ workflow {
     // ---- DATABASES
     silva_ref = Channel.fromPath(params.silva_ref, checkIfExists: true)
                         .ifEmpty { exit 1, "Cannot find silva_ref file matching ${params.silva_ref}!\n" }
-    prot_accession = Channel.fromPath(params.prot_accession, checkIfExists: true)
-                        .ifEmpty { exit 1, "Cannot find prot_accession matching ${params.prot_accession}!\n" }
     taxonkit_dir = Channel.fromPath(params.taxonkit_dir, checkIfExists: true)
                         .ifEmpty { exit 1, "Cannot find taxonkit_dir matching ${params.taxonkit_dir}!\n" }
     diamond_db = Channel.fromPath(params.diamond_db, checkIfExists: true)
@@ -189,8 +185,8 @@ workflow {
 
     //Taxonomic assignation
     diamond_ch = taxo_assign_diamond(assembly_ch.assembly_only, diamond_db.collect())
-    prepare_taxonkit_grep(diamond_ch, prot_accession.collect())
-    taxo_table_taxonkit(prepare_taxonkit_grep.out.taxid, taxonkit_dir.collect())
+    prepare_taxonkit(diamond_ch)
+    taxo_table_taxonkit(prepare_taxonkit.out.taxid, taxonkit_dir.collect())
 
     taxo_table_taxonkit.out.taxo_table.map { meta, accession_taxid_txt, taxo_table_txt -> tuple(meta.id, meta, accession_taxid_txt, taxo_table_txt) }
         .join(diamond_ch.map { meta, diamond_file_tsv -> tuple(meta.id, meta, diamond_file_tsv) })
@@ -267,7 +263,6 @@ def helpMSG() {
         Database
             --silva_ref             Path to the SILVA reference file for BBduk (fasta format)
             --diamond_db            Path to the DIAMOND database file (ncbi-nr.taxonomy.dmnd)
-            --prot_accession        Path to the prot.accession2taxid.txt file from NCBI ( ftp://ftp.ncbi.nih.gov/pub/taxonomy/accession2taxid/prot.accession2taxid.FULL.gz)
             --taxonkit_dir          Path to the TaxonKit files (download and uncompress from ftp://ftp.ncbi.nlm.nih.gov/pub/taxonomy/taxdump.tar.gz)
 
     Optional parameters
