@@ -282,12 +282,7 @@ def helpMSG() {
 
     Mandatory Parameters
         General
-            --input                 Path to a CSV file that expects 3 columns: `sample_id,read1.fastq.gz,read2.fastq.gz`. Each row represents a paired-end sample.
-    
-        Database
-            --silva_ref             Path to the SILVA reference file for BBduk (fasta format)
-            --diamond_db            Path to the DIAMOND database file (ncbi-nr.taxonomy.dmnd)
-            --taxonkit_dir          Path to the TaxonKit files (download and uncompress from ftp://ftp.ncbi.nlm.nih.gov/pub/taxonomy/taxdump.tar.gz)
+            --input                 Path to a CSV file that expects 3 columns (with a header): `sample,read1,read2.`. Each row represents a paired-end sample.
 
     Optional parameters
         General
@@ -299,6 +294,14 @@ def helpMSG() {
 
         Assembly
             --length_seq            Minimum contig length to keep after assembly (default 0, no filtering)
+            
+        Deduplication
+            --skip_dedup            Skip deduplication step (samtools markdup), default: false
+    
+        Database
+            --conta_ref             Path to the contamination reference file for BBduk (fasta format)
+            --diamond_db            Path to the DIAMOND database file (ncbi-nr.taxonomy.dmnd)
+            --taxonkit_dir          Path to the TaxonKit files (download and uncompress from ftp://ftp.ncbi.nlm.nih.gov/pub/taxonomy/taxdump.tar.gz)
 
         Taxonomic assignation
             --diam_sensi            Sensitivity mode for DIAMOND among this list ${valid_sensi_flags} (default: empty, which means no sensitivity flag)

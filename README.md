@@ -148,7 +148,7 @@ MixC,/path/to/fastq/MixC_R1.fastq.gz,/path/to/fastq/MixC_R2.fastq.gz
 | `--trim_opt` | (empty) | Option to set to trimming tool chosen. |
 | `--skip_dedup` | false | Skip the deduplication step with `samtools markdup`. |
 | `--length_seq` | `0` | Minimum length (in bp) to keep contigs after SPAdes assembly. Use `0` to **keep all** contigs without filtering. |
-| `--silva_ref` | Non viral ribosomal DNA (16S/18S and 23S/28S) sequences from SILVA rRNA database (release 138). | Path to a reference file containing sequences to exclude as potential contaminants (e.g. a host genome), provided in FASTA format (compressed or uncompressed). |
+| `--conta_ref` | Non viral ribosomal DNA (16S/18S and 23S/28S) sequences from SILVA rRNA database (release 138). | Path to a reference file containing sequences to exclude as potential contaminants (e.g. a host genome), provided in FASTA format (compressed or uncompressed). |
 | `--diamond_db` | NCBI RefSeq non-redundant protein database restricted to viral sequences. | Path to the **DIAMOND-formatted database** for protein sequence taxonomic assignment. ([DIAMOND setup example](https://github.com/MargauxLefebvre/ViroSeek#diamond-and-taxonkit)) |
 | `--taxonkit_dir` | NCBI taxonomy dump files. | Path to a directory containing the **NCBI taxonomy dump files** required by TaxonKit (`names.dmp`, `nodes.dmp`, etc.). ([DIAMOND setup example](https://github.com/MargauxLefebvre/ViroSeek#diamond-and-taxonkit)) |
 | `--diam_evalue` | `0.001` | Maximum **e-value** for DIAMOND alignment hits. Lower values increase stringency. |
