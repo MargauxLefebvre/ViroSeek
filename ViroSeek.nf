@@ -11,7 +11,7 @@ input          = ''        // Path to a CSV file with 3 columns
 outdir         = 'results' // Path to output results
 
 // Database
-silva_ref      = ''         // Path to the SILVA reference file for BBduk (fasta format)
+conta_ref      = ''         // Path to the contamination reference file for BBduk (fasta format)
 diamond_db     = ''         // Path to the Diamond database file (ncbi-nr.taxonomy.dmnd)
 taxonkit_dir   = ''         // Path to the TaxonKit files (download and uncompress from https://bioinf.shenwei.me/taxonkit/)
 
@@ -46,10 +46,16 @@ if (params.help) { exit 0, helpMSG() }
 / STEP 1 - check parameters
 /*************************************************/
 
-// ---- check SILVA file
-def silva_ref_file        = ViroSeekUtils.resolveFile(params.silva_ref, "silva_ref")
-def diamond_db_file       = ViroSeekUtils.resolveFile(params.diamond_db, "diamond_db")
-def taxonkit_dir_file     = ViroSeekUtils.resolveFile(params.taxonkit_dir, "taxonkit_dir")
+// ---- check SILVA file only if provided
+if (params.silva_ref) {
+    ViroSeekUtils.resolveFile(params.silva_ref, "silva_ref")
+}
+
+// ---- check DIAMOND resources only if BOTH are provided
+if (params.diamond_db && params.taxonkit_dir) {
+    ViroSeekUtils.resolveFile(params.diamond_db, "diamond_db")
+    ViroSeekUtils.resolveFile(params.taxonkit_dir, "taxonkit_dir")
+}
 
 // check trimming tool
 if (params.trim && !trimming_tools.contains(params.trim)) {
@@ -75,6 +81,7 @@ include {samtools_sam2sortedbam; samtools_markdup; samtools_idxstats} from "$bas
 include {assembly_spades} from "$baseDir/modules/spades.nf"
 include {taxo_table_taxonkit} from "$baseDir/modules/taxonkit.nf"
 include {trim_trimgalore} from "$baseDir/modules/trimgalore.nf"
+include {prepare_silva_DB; dwnload_diamond_DB; dwnload_taxonkit_DB; prepare_viral_accessions; prepare_accession2taxid; subset_diamond_DB; prepare_diamond_DB} from "$baseDir/modules/database.nf"
 
 /*************************************************
 / STEP 4 - MAIN WORKFLOW
@@ -130,15 +137,32 @@ workflow {
                 else
                     error "File(s) for sample ${sample_id} do not look like FASTQ"
             }
-    // ---- DATABASES
-    silva_ref = Channel.fromPath(params.silva_ref, checkIfExists: true)
-                        .ifEmpty { exit 1, "Cannot find silva_ref file matching ${params.silva_ref}!\n" }
-    taxonkit_dir = Channel.fromPath(params.taxonkit_dir, checkIfExists: true)
-                        .ifEmpty { exit 1, "Cannot find taxonkit_dir matching ${params.taxonkit_dir}!\n" }
-    diamond_db = Channel.fromPath(params.diamond_db, checkIfExists: true)
-                            .ifEmpty { exit 1, "Cannot find diamond_db matching ${params.diamond_db}!\n" }
 
 // -------------------------------- WORKFLOW STEPS --------------------------------
+    // ---- DATABASES
+    if (params.conta_ref) {
+        silva_ref = Channel.fromPath(params.conta_ref, checkIfExists: true)
+    } else {
+        log.info "No contamination reference file provided, using default non-viral ribosomal RNA references (16S/18S and 23S/28S) from the SILVA rRNA database, release 138"
+        prepare_silva_DB()
+        silva_ref = prepare_silva_DB.out.fasta
+    }
+    
+    if (params.diamond_db && params.taxonkit_dir) {
+        diamond_db   = Channel.fromPath(params.diamond_db, checkIfExists: true)
+        taxonkit_dir = Channel.fromPath(params.taxonkit_dir, checkIfExists: true)
+    } else {
+        log.info "No Diamond database and/or Tqxonkit directory provided, using NCBI Ref-Seq non-redundant protein database restricted to viral sequences"
+        dwnload_diamond_DB()
+        dwnload_taxonkit_DB()
+        prepare_viral_accessions(dwnload_taxonkit_DB.out.taxonkit_dir)
+        prepare_accession2taxid(prepare_viral_accessions.out.viral_taxids)
+        subset_diamond_DB(prepare_accession2taxid.out.viral_accessions, dwnload_diamond_DB.out.nr_database)
+        prepare_diamond_DB(prepare_accession2taxid.out.accession2taxidFULL, subset_diamond_DB.out.viral_ref, dwnload_taxonkit_DB.out.taxonkit_dir)
+        diamond_db   = prepare_diamond_DB.out.diamond_db
+        taxonkit_dir = dwnload_taxonkit_DB.out.taxonkit_dir
+    }
+    
     // Run FastQC pre-trimming
     fastqc_raw(samples_ch, "fastQC/fastqc_pretrim", "raw")
     logs.concat(fastqc_raw.out).set{logs} // save log
@@ -159,7 +183,7 @@ workflow {
     logs.concat(fastqc_posttrim.out).set{logs} // save log
 
     // BBduk filtering using trimmed reads
-    BBduk_ch = trimmed_ch.trim | filtering_bbduk
+    BBduk_ch = trimmed_ch.trim.combine(silva_ref) | filtering_bbduk
 
     // FastQC post BBduk
     fastqc_postBBduk(BBduk_ch, "fastQC/fastqc_postBBduk", "postBBduk")
