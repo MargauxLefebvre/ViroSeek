@@ -76,7 +76,7 @@ Please follow the instructions at the [Singularity website](https://docs.sylabs.
 ## Softwares
 
 Software is provided as containers, which help ensure reproducibility and are automatically retrieved by the pipeline.  
-To access information about software versions, please refer to `resources/softwares.config`.  
+To access information about software versions, please refer to `config/softwares.config`.  
 You can easily update the version of any software by modifying the corresponding software image in that file.
 
 ## Databases
