@@ -67,6 +67,35 @@ if (params.diam_sensi && !valid_sensi_flags.contains(params.diam_sensi)) {
     exit 1, "Error: DIAMOND sensi flag (--diam_sensi) ${params.diam_sensi} not recognized! Choose among this list: ${valid_sensi_flags} or let it empty!\n"
 }
 
+
+// Parameter message
+log.info """
+
+General Parameters
+    input                      : ${params.input}
+    outdir                     : ${params.outdir}
+
+Contamination Filtering Parameters
+    conta_ref                  : ${params.conta_ref ?: "default SILVA rRNA database (release 138)"}
+
+Assembly Parameters
+    length_seq                 : ${params.length_seq}
+    skip_dedup                 : ${params.skip_dedup ? "yes" : "no"}
+
+Taxonomic Assignment Parameters
+    diamond_db                 : ${params.diamond_db ?: "default NCBI RefSeq viral protein DB"}
+    taxonkit_dir               : ${params.taxonkit_dir ?: "default (auto-downloaded)"}
+    diam_sensi                 : ${params.diam_sensi ?: "none (default)"}
+    diam_evalue                : ${params.diam_evalue}
+    diam_id                    : ${params.diam_id}
+    diam_querycov              : ${params.diam_querycov}
+
+Trimming Parameters
+    trim                       : ${params.trim ?: "none (skipped)"}
+    trim_opt                   : ${params.trim_opt ?: "none"}
+
+"""
+
 /*************************************************
 / STEP 2 - Include needed modules
 /*************************************************/
