@@ -181,7 +181,7 @@ workflow {
         diamond_db   = Channel.fromPath(params.diamond_db, checkIfExists: true)
         taxonkit_dir = Channel.fromPath(params.taxonkit_dir, checkIfExists: true)
     } else {
-        log.info "No Diamond database and/or Tqxonkit directory provided, using NCBI Ref-Seq non-redundant protein database restricted to viral sequences"
+        log.info "No Diamond database and/or Taxonkit directory provided, using NCBI Ref-Seq non-redundant protein database restricted to viral sequences"
         dwnload_diamond_DB()
         dwnload_taxonkit_DB()
         prepare_viral_accessions(dwnload_taxonkit_DB.out.taxonkit_dir)
