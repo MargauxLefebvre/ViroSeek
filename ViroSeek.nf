@@ -36,7 +36,7 @@ params.help = null
 params.debug = false
 
 /*************************************************
-/ HELP
+/ STEP 0 HELP
 /*************************************************/
 
 println header()
