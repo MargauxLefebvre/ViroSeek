@@ -7,20 +7,18 @@ process prepare_silva_DB {
     publishDir "${params.outdir}/Database", mode: 'copy'
 
     output:
-        path("SILVA.fa.gz"), emit: fasta
+        path("CONTA.fa.gz"), emit: fasta
 
     script:
         """
         # Download the references database from https://www.arb-silva.de
-        wget -c https://www.arb-silva.de/fileadmin/silva_databases/current/Exports/SILVA_138.2_LSURef_NR99_tax_silva.fasta.gz
-        wget -c https://www.arb-silva.de/fileadmin/silva_databases/current/Exports/SILVA_138.2_SSURef_NR99_tax_silva.fasta.gz
+        wget -c ${params.conta_ref} --tries=0 --timeout=30
         
         # Merge the database together (>650Mo)
-        zcat SILVA_138.2_LSURef_NR99_tax_silva.fasta.gz SILVA_138.2_SSURef_NR99_tax_silva.fasta.gz | gzip > SILVA.fa.gz
+        zcat *.fasta.gz | gzip > CONTA.fa.gz
         
-        # Remove the downloaded fasta to save space 
-        rm SILVA_138.2_LSURef_NR99_tax_silva.fasta.gz 
-        rm SILVA_138.2_SSURef_NR99_tax_silva.fasta.gz 
+        # Remove the downloaded fasta to save space (if huge silva file)
+        rm *_silva.fasta.gz 
         """
 }
 
@@ -39,7 +37,7 @@ process dwnload_taxonkit_DB {
         """
       # Download and untar the taxonomy dump (essential for linking protein sequences to taxonomic information with Taxonkit).
       mkdir -p taxonkit
-      wget -c https://ftp.ncbi.nlm.nih.gov/pub/taxonomy/taxdump.tar.gz
+      wget -c ${params.taxonkit_dir} --tries=0 --timeout=30
       tar -xzf taxdump.tar.gz -C taxonkit
         """
 }
@@ -80,7 +78,7 @@ process prepare_accession2taxid {
     script:
         """
       # Download the accession-to-taxonomy mapping (this file maps protein accession numbers to NCBI Taxonomy IDs) >150Go uncompressed. Uncompress and keep compressed one too for DIAMOND
-      wget -c https://ftp.ncbi.nih.gov/pub/taxonomy/accession2taxid/prot.accession2taxid.FULL.gz
+      wget -c ${params.prot_accession} --tries=0 --timeout=30
       
       # Extract the viral accessions
       zcat prot.accession2taxid.FULL.gz \
@@ -101,7 +99,7 @@ process dwnload_diamond_DB {
     script:
         """
       # Fetch the non-redundant (NR) protein database in FASTA format from NCBI. >186Go
-      wget -c https://ftp.ncbi.nih.gov/blast/db/FASTA/nr.gz
+      wget -c ${params.diamond_db} --tries=0 --timeout=30
         """
 }
 
