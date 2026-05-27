@@ -161,27 +161,28 @@ workflow {
     
       // ---- check conta sequence
     if (params.conta_ref) {
-        if (ViroSeekUtils.resolveFile(params.conta_ref, "conta_ref") && ViroSeekUtils.is_fasta(conta_ref)){
-          log.info "Use the contamination sequence provided by the user."
-          silva_ref = Channel.fromPath(params.conta_ref, checkIfExists: true)
-      } else if (ViroSeekUtils.is_url(params.conta_ref)) {
+      def found = false
+      
+      if (ViroSeekUtils.is_url(params.conta_ref)) {
+          found = true
           log.info "Download of the contamination sequence file provided (default non-viral ribosomal RNA references (16S/18S and 23S/28S) from the SILVA rRNA database, release 138)"
           prepare_silva_DB()
-          silva_ref = prepare_silva_DB.out.fasta
-      } else {
-         exit 1, "Error: no contamination sequence file found.\n Please check input file or URL provided.\n "
-      }
-    } else {
-         exit 1, "Error: no contamination sequence file found.\n Please check input file or URL provided.\n "
-      }
+          silva_ref = prepare_silva_DB.out.fasta}
+    
+      if (ViroSeekUtils.resolveFile(params.conta_ref, "conta_ref")) {
+          found = true
+          log.info "Use contamination sequence provided by user."
+          silva_ref = Channel.fromPath(params.conta_ref, checkIfExists: true)}
+
+      if (!found) {exit 1, "Error: no contamination sequence file found.\n Please check input file or URL provided.\n "}
+    }
 
 // ---- check DIAMOND resources only if BOTH are provided
     if (params.diamond_db && params.taxonkit_dir) {
-      if (ViroSeekUtils.resolveFile(params.diamond_db, "diamond_db") && ViroSeekUtils.resolveFile(params.taxonkit_dir)){
-        log.info "Use the datatbase provided by the user."
-        diamond_db   = Channel.fromPath(params.diamond_db, checkIfExists: true)
-        taxonkit_dir = Channel.fromPath(params.taxonkit_dir, checkIfExists: true)
-    } else if (ViroSeekUtils.is_url(params.diamond_db) && ViroSeekUtils.is_url(params.taxonkit_dir) && ViroSeekUtils.is_url(params.prot_accession)){
+      def found = false
+      
+      if (ViroSeekUtils.is_url(params.diamond_db) && ViroSeekUtils.is_url(params.taxonkit_dir) && ViroSeekUtils.is_url(params.prot_accession)){
+        found = true
         log.info "No Diamond database and/or Taxonkit directory provided, using NCBI Ref-Seq non-redundant protein database restricted to viral sequences"
         dwnload_diamond_DB()
         dwnload_taxonkit_DB()
@@ -190,13 +191,16 @@ workflow {
         subset_diamond_DB(prepare_accession2taxid.out.viral_accessions, dwnload_diamond_DB.out.nr_database)
         prepare_diamond_DB(prepare_accession2taxid.out.accession2taxidFULL, subset_diamond_DB.out.viral_ref, dwnload_taxonkit_DB.out.taxonkit_dir)
         diamond_db   = prepare_diamond_DB.out.diamond_db
-        taxonkit_dir = dwnload_taxonkit_DB.out.taxonkit_dir
-    } else {
-         exit 1, "Error: no database provided or incomplete.\n Please check input files or URL provided.\n"
-      }
-    } else {
-         exit 1, "Error: no database provided or incomplete.\n Please check input files or URL provided.\n"
-      }
+        taxonkit_dir = dwnload_taxonkit_DB.out.taxonkit_dir}
+        
+      if (ViroSeekUtils.resolveFile(params.diamond_db, "diamond_db")){
+        found = true
+        log.info "Use the datatbase provided by the user."
+        diamond_db   = Channel.fromPath(params.diamond_db, checkIfExists: true)
+        taxonkit_dir = Channel.fromPath(params.taxonkit_dir, checkIfExists: true)}
+      
+      if (!found) {exit 1, "Error: no database provided or incomplete.\n Please check input files or URL provided.\n"}
+    }
 
 // check trimming tool
 if (params.trim && !trimming_tools.contains(params.trim)) {
