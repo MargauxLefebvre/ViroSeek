@@ -46,17 +46,6 @@ if (params.help) { exit 0, helpMSG() }
 / STEP 1 - check parameters
 /*************************************************/
 
-// ---- check SILVA file only if provided
-if (params.silva_ref) {
-    ViroSeekUtils.resolveFile(params.silva_ref, "silva_ref")
-}
-
-// ---- check DIAMOND resources only if BOTH are provided
-if (params.diamond_db && params.taxonkit_dir) {
-    ViroSeekUtils.resolveFile(params.diamond_db, "diamond_db")
-    ViroSeekUtils.resolveFile(params.taxonkit_dir, "taxonkit_dir")
-}
-
 // check trimming tool
 if (params.trim && !trimming_tools.contains(params.trim)) {
     exit 1, "Error: trimming tool ${params.trim} not recognized! Choose among this list: ${trimming_tools}\n"
@@ -192,7 +181,7 @@ workflow {
         log.info "Use the datatbase provided by the user."
         diamond_db   = Channel.fromPath(params.diamond_db, checkIfExists: true)
         taxonkit_dir = Channel.fromPath(params.taxonkit_dir, checkIfExists: true)
-    } else if (ViroSeekUtils.is_url(params.diamond_db) && ViroSeekUtils.is_url(params.taxonkit_dir) && iroSeekUtils.is_url(params.prot_accession)){
+    } else if (ViroSeekUtils.is_url(params.diamond_db) && ViroSeekUtils.is_url(params.taxonkit_dir) && ViroSeekUtils.is_url(params.prot_accession)){
         log.info "No Diamond database and/or Taxonkit directory provided, using NCBI Ref-Seq non-redundant protein database restricted to viral sequences"
         dwnload_diamond_DB()
         dwnload_taxonkit_DB()
