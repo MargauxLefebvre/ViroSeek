@@ -18,7 +18,7 @@ process prepare_silva_DB {
         zcat *.fasta.gz | gzip > CONTA.fa.gz
         
         # Remove the downloaded fasta to save space (if huge silva file)
-        rm *_silva.fasta.gz 
+        rm -f *_silva.fasta.gz 
         """
 }
 
