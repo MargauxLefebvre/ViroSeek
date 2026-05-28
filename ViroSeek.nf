@@ -11,9 +11,10 @@ input          = ''        // Path to a CSV file with 3 columns
 outdir         = 'results' // Path to output results
 
 // Database
-conta_ref      = ''         // Path to the contamination reference file for BBduk (fasta format)
-diamond_db     = ''         // Path to the Diamond database file (ncbi-nr.taxonomy.dmnd)
-taxonkit_dir   = ''         // Path to the TaxonKit files (download and uncompress from https://bioinf.shenwei.me/taxonkit/)
+    conta_ref      = 'https://www.arb-silva.de/fileadmin/silva_databases/current/Exports/SILVA_138.2_SSURef_NR99_tax_silva.fasta.gz,https://www.arb-silva.de/fileadmin/silva_databases/current/Exports/SILVA_138.2_LSURef_NR99_tax_silva.fasta.gz'         // Path to the contamination reference file for BBduk (fasta format). By default, non-viral rRNA references from the SILVA rRNA database, release 138
+    taxonkit_dir   = 'https://ftp.ncbi.nlm.nih.gov/pub/taxonomy/taxdump.tar.gz'         // Path to the uncompressed taxdump folder (ftp://ftp.ncbi.nlm.nih.gov/pub/taxonomy/taxdump.tar.gz)
+    diamond_db     = 'https://ftp.ncbi.nih.gov/blast/db/FASTA/nr.gz'         // Path to the Diamond database file (ncbi-nr.taxonomy.dmnd). Made using nr_db, prot_accession and taxdump
+    prot_accession = 'https://ftp.ncbi.nih.gov/pub/taxonomy/accession2taxid/prot.accession2taxid.FULL.gz' // URL to prot.accession2taxid.txt from NCBI, used to map accession numbers to Taxonomy IDs.
 
 // Trim
 trim           = ''          // Tools to use to trim [trimgalore, fastp]. Empty is accepted and means no trimming.
@@ -99,7 +100,7 @@ include {samtools_sam2sortedbam; samtools_markdup; samtools_idxstats} from "$bas
 include {assembly_spades} from "$baseDir/modules/spades.nf"
 include {taxo_table_taxonkit} from "$baseDir/modules/taxonkit.nf"
 include {trim_trimgalore} from "$baseDir/modules/trimgalore.nf"
-include {prepare_silva_DB; dwnload_diamond_DB; dwnload_taxonkit_DB; prepare_viral_accessions; prepare_accession2taxid; subset_diamond_DB; prepare_diamond_DB} from "$baseDir/modules/database.nf"
+include {prepare_silva_DB; prepare_silva_DB_list; dwnload_diamond_DB; dwnload_taxonkit_DB; prepare_viral_accessions; prepare_accession2taxid; subset_diamond_DB; prepare_diamond_DB} from "$baseDir/modules/database.nf"
 
 /*************************************************
 / STEP 4 - MAIN WORKFLOW
@@ -163,19 +164,39 @@ workflow {
     if (params.conta_ref) {
       def found = false
       
+      if(params.conta_ref.indexOf(',') >= 0) {
+        def conta_list=[]
+                // Cut into list with coma separator
+                str_list = params.conta_ref.tokenize(',')
+                // loop over elements
+                str_list.each {
+                    str_list2 = it.tokenize(' ')
+                    str_list2.each {
+                            if (ViroSeekUtils.is_url(it) ) {
+                                log.info "Download of the contamination sequence files provided (default non-viral ribosomal RNA references (16S/18S and 23S/28S) from the SILVA rRNA database, release 138)"
+                                via_url = true
+                                found = true
+                            }
+                            conta_list.add(it) // use file insted of File for URL
+                    }
+                }
+                prepare_silva_DB_list(conta_list)
+                silva_ref = prepare_silva_DB_list.out.fasta
+            } else {
       if (ViroSeekUtils.is_url(params.conta_ref)) {
           found = true
-          log.info "Download of the contamination sequence file provided (default non-viral ribosomal RNA references (16S/18S and 23S/28S) from the SILVA rRNA database, release 138)"
+          log.info "Download of the contamination sequence file provided"
           prepare_silva_DB()
           silva_ref = prepare_silva_DB.out.fasta}
     
-      if (ViroSeekUtils.resolveFile(params.conta_ref, "conta_ref")) {
+      else if (ViroSeekUtils.resolveFile(params.conta_ref, "conta_ref")) {
           found = true
           log.info "Use contamination sequence provided by user."
           silva_ref = Channel.fromPath(params.conta_ref, checkIfExists: true)}
-
+       }
       if (!found) {exit 1, "Error: no contamination sequence file found.\n Please check input file or URL provided.\n "}
     }
+
 
 // ---- check DIAMOND resources only if BOTH are provided
     if (params.diamond_db && params.taxonkit_dir) {
@@ -193,7 +214,7 @@ workflow {
         diamond_db   = prepare_diamond_DB.out.diamond_db
         taxonkit_dir = dwnload_taxonkit_DB.out.taxonkit_dir}
         
-      if (ViroSeekUtils.resolveFile(params.diamond_db, "diamond_db")){
+      else if (ViroSeekUtils.resolveFile(params.diamond_db, "diamond_db")){
         found = true
         log.info "Use the datatbase provided by the user."
         diamond_db   = Channel.fromPath(params.diamond_db, checkIfExists: true)

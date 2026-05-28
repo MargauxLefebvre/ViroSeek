@@ -9,16 +9,48 @@ process prepare_silva_DB {
     output:
         path("CONTA.fa.gz"), emit: fasta
 
+
     script:
+    def list_csv = []
+    list_csv = all_csv
+    list_csv_bash = list_csv.join(" "); // remove bracket and replace comma by space to be processed by bash
         """
         # Download the references database from https://www.arb-silva.de
         wget -c ${params.conta_ref} --tries=0 --timeout=30
         
-        # Merge the database together (>650Mo)
+        # Merge the database together
         zcat *.fasta.gz | gzip > CONTA.fa.gz
+        """
+}
+
+/*
+ * Process: create the SILVA reference database used for filtering
+ */
+process prepare_silva_DB_list {
+    label 'wget'
+    
+    publishDir "${params.outdir}/Database", mode: 'copy'
+    
+    input:
+        val list_urls
+
+    output:
+        path("CONTA.fa.gz"), emit: fasta
+
+
+    script:
+    def list_csv = []
+    list_csv = list_urls
+    list_csv_bash = list_csv.join(" "); // remove bracket and replace comma by space to be processed by bash
+        """
+        # Download the references
+        for entry in ${list_csv_bash}; do
+             wget -c \$entry --tries=0 --timeout=30
+        done
+       
         
-        # Remove the downloaded fasta to save space (if huge silva file)
-        rm -f *_silva.fasta.gz 
+        # Merge the database together
+        zcat *.fasta.gz | gzip > CONTA.fa.gz
         """
 }
 
