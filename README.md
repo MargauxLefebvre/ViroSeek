@@ -1,6 +1,6 @@
 ViroSeek
 ================
-<img align="right" src="docs/img/IRD.png" width="200" height="66" /> <img align="right" src="docs/img/MIVEGEC.png" width="100" height="66" />
+<img align="right" src="docs/img/IRD.png" width="225" height="66" /> <img align="right" src="docs/img/MIVEGEC.png" width="100" height="66" />
 
 ViroSeek is a pipeline designed for the analysis of viromes derived from target-enriched libraries, with a particular emphasis on eukaryotic viruses, including arboviruses of public health concern.
 
@@ -183,7 +183,7 @@ nextflow run MargauxLefebvre/ViroSeek -r v0.0.2 --input '/path/to/samples.csv' -
 
 The command `nextflow run MargauxLefebvre/ViroSeek -r v0.0.2` allows you to run the pipeline directly from the v0.0.2 release without any manual installation (apart from the required dependencies, i.e. Nextflow and a supported container platform; see the [Installation](#installation) section). Nextflow automatically downloads and manages the pipeline code locally.
 
-Alternatively, you can clone the repository and run the pipeline from a local copy. In this case, the command becomes `nextflow run ViroSeek.nf. Follow the steps below:
+Alternatively, you can clone the repository and run the pipeline from a local copy. In this case, the command becomes `nextflow run ViroSeek.nf`. Follow the steps below:
 
 ```
 # clone the repository
@@ -195,8 +195,6 @@ cd ViroSeek
 # run the pipeline (example: display help)
 nextflow run ViroSeek.nf --help
 ```
-
-If running the pipeline from the repository after a local clone 
 
 ## Profiles 
 
@@ -225,7 +223,7 @@ your system before rerunning.
 
 ## Contributing
 
-Contributions from the community are welcome ! See the [Contributing guidelines](https://github.com/MargauxLefebvre/ViroSeek/blob/main/CONTRIBUTING.md)
+Contributions from the community are welcome ! See the [Contributing guidelines](https://github.com/MargauxLefebvre/ViroSeek/blob/main/CONTRIBUTING.md).
 
 ## How to cite
 
