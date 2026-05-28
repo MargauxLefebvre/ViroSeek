@@ -14,10 +14,10 @@ process taxo_table_taxonkit {
 
     script:
     """
-        # Extract taxIDs
-        cut -f2 ${accession_taxid} > ${meta.id}.taxid.txt
-
         # Use TaxonKit to obtain taxonomy from taxIDs
-        taxonkit lineage ${meta.id}.taxid.txt --data-dir ${taxonkit_dir} > ${meta.id}_taxonomy_table.txt
+        taxonkit reformat2 ${accession_taxid} -I 1 \
+        --data-dir ${taxonkit_dir} \
+        -f "{domain|acellular root|superkingdom};{phylum};{class};{order};{family};{genus};{species};{subspecies|strain|no rank}" \
+        -r "NA" > ${meta.id}_taxonomy_table.txt
     """
 }

@@ -18,7 +18,9 @@ process taxo_assign_diamond {
 
     """
     diamond blastx -p ${task.cpus} -d ${diamond_db} -q ${assemby} \
-        -o ${meta.id}_diamond_blastx.tsv --max-target-seqs 1 -e ${params.diam_evalue} --id ${params.diam_id} \
+        -o ${meta.id}_diamond_blastx.tsv \
+        --outfmt 6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore staxids \
+        --max-target-seqs 1 -e ${params.diam_evalue} --id ${params.diam_id} \
         --query-cover ${params.diam_querycov} --range-culling -F 15 ${params.diam_sensi}
     """
 }

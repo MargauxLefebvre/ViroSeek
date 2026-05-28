@@ -6,7 +6,7 @@ process filtering_bbduk {
     tag "$meta.id"
 
     input:
-        tuple val(meta), path(reads)
+        tuple val(meta), path(reads), path(silva_ref)
 
     output:
         tuple val(meta), path("*_rmrdna.fastq.gz")
@@ -21,6 +21,6 @@ process filtering_bbduk {
             ${read_args_in} \
             ${read_args_out} \
             threads=${task.cpus} \
-            ref=${params.silva_ref}
+            ref=${silva_ref}
         """
 }

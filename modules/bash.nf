@@ -1,26 +1,22 @@
 /*
- * Process: Prepare the taxonkit input file using grep
+ * Process: Prepare the taxonkit input file
  */
-process prepare_taxonkit_grep {
+process prepare_taxonkit {
     label 'bash'
     tag "$meta.id"
 
     input:
         tuple val(meta), path(output_diamond)
-        path(prot_accession)
 
     output:
-        tuple val(meta), path("*.accession_taxid.txt"), emit: taxid
+        tuple val(meta), path("*_taxid.txt"), emit: taxid
 
     script:
         """
         # Retrieve the accession IDs column from the Diamond file
         # and Associate taxIDs with accession IDs
         # Remove duplicates
-        cut -f2 ${output_diamond} | sort -u > ${meta.id}_accession.txt
-    
-        # Associate taxIDs with accession IDs
-        grep -F -f ${meta.id}_accession.txt ${prot_accession} > ${meta.id}.accession_taxid.txt
+        cut -f13 ${output_diamond} | sort -u > ${meta.id}_taxid.txt
         """
 }
 
@@ -47,19 +43,22 @@ process taxo_quanti {
         # Merge contigs_reads.tsv and X.tsv files by contig number
         join -1 1 -2 1 <(sort "${quanti_stats}") <(sort "${output_diamond}") > ${meta.id}_contig_reads_accession.txt
     
-        # Add taxIDs
-        join -1 5 -2 1 <(sort -k5,5 "${meta.id}_contig_reads_accession.txt") <(sort -k1,1 "${taxid}") > ${meta.id}_contig_reads_accession_taxid.txt
-    
         # Merge with taxonomy table
-        join -1 16 -2 1 <(sort -k16,16 "${meta.id}_contig_reads_accession_taxid.txt") <(sort -k1,1 "${taxo_table}") > ${meta.id}_final_assembly.txt
-    
+        join -1 16 -2 1 <(sort -k16,16 "${meta.id}_contig_reads_accession.txt") <(sort -k1,1 "${taxo_table}") > ${meta.id}_final_assembly.txt
+
         # Filter to keep only lines containing “virus”.
         grep -i "virus" ${meta.id}_final_assembly.txt > ${meta.id}_virus_taxonomy.txt
         uniq ${meta.id}_virus_taxonomy.txt > ${meta.id}_filter_viral_taxonomy.txt
     
         # Keep only reads count and the taxonomy in a tab delimited file
-        awk '{printf "%s\t", \$5; for (i=17; i<=NF; i++) printf "%s%s", \$i, (i<NF?" ":"\\n")}' ${meta.id}_filter_viral_taxonomy.txt > ${meta.id}_taxonomy_viral.txt
-        sed 's/;/\t/g' ${meta.id}_taxonomy_viral.txt > ${meta.id}_taxonomy_viral.clean.txt
-        cp -r ${meta.id}_filter_viral_taxonomy.txt ${meta.id}_all_viral_taxonomy.txt
+        awk '{printf "%s\t", \$4; for (i=17; i<=NF; i++) printf "%s%s", \$i, (i<NF?" ":"\\n")}' ${meta.id}_filter_viral_taxonomy.txt > ${meta.id}_taxonomy_viral.txt
+        sed 's/;/\t/g' ${meta.id}_taxonomy_viral.txt > ${meta.id}_taxonomy_viral.temp.txt
+ 
+        #Put clear headers
+        echo -e '#_reads\tdomain\tphylum\tclass\torder\tfamily\tgenus\tspecies\tstrain' > ${meta.id}_taxonomy_viral.clean.txt
+        cat ${meta.id}_taxonomy_viral.temp.txt >> ${meta.id}_taxonomy_viral.clean.txt
+      
+        echo -e 'taxIDs\tseq_name\tseq_length\t#_readsmapped\t#_readsunmapped\tsseqid\tpident\tlength\tmismatch\tgapopen\tqstart\tqend\tsstart\tsend\tevalue\tbitscore\tlineage' > ${meta.id}_all_viral_taxonomy.txt
+        cat ${meta.id}_filter_viral_taxonomy.txt >> ${meta.id}_all_viral_taxonomy.txt
     """
 }
