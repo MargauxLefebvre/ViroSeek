@@ -103,7 +103,6 @@ Below, we provide instructions for generating the alternative DIAMOND database a
     
     # ----- Create a DIAMOND database with taxonomy mapping ~ 3h with 32 CPU - ~365 Go -----
     # --taxonmap accepts compressed and uncompressed input
-    # use diamond >= v2.1.12 to avoid new NCBI taxonomic ranks "cellular root", "acellular root", "domain" and "realm".
     # /!\ Be careful to use same DIAMOND version than the one used by ViroSeek (see config/softwares.config file).
     
     # First fetch the non-redundant (NR) protein database in FASTA format from NCBI. >186Go
@@ -148,9 +147,9 @@ MixC,/path/to/fastq/MixC_R1.fastq.gz,/path/to/fastq/MixC_R2.fastq.gz
 | `--trim_opt` | (empty) | Option to set to trimming tool chosen. |
 | `--skip_dedup` | false | Skip the deduplication step with `samtools markdup`. |
 | `--length_seq` | `0` | Minimum length (in bp) to keep contigs after SPAdes assembly. Use `0` to **keep all** contigs without filtering. |
-| `--conta_ref` | Non viral ribosomal DNA (16S/18S and 23S/28S) sequences from SILVA rRNA database (release 138). | Path to a reference file containing sequences to exclude as potential contaminants (e.g. a host genome), provided in FASTA format (compressed or uncompressed). |
+| `--conta_ref` | Non viral ribosomal DNA (16S/18S and 23S/28S) sequences from SILVA rRNA database (release 138). | Path to a reference file containing sequences to exclude as potential contaminants (e.g. a host genome), provided in FASTA format (compressed or uncompressed). Alternatively, a comma-separated list of URLs may be supplied to automatically download and use the reference sequences. |
 | `--diamond_db` | NCBI RefSeq non-redundant protein database restricted to viral sequences. | Path to the **DIAMOND-formatted database** for protein sequence taxonomic assignment. ([DIAMOND setup example](https://github.com/MargauxLefebvre/ViroSeek#diamond-and-taxonkit)) |
-| `--taxonkit_dir` | NCBI taxonomy dump files. | Path to a directory containing the **NCBI taxonomy dump files** required by TaxonKit (`names.dmp`, `nodes.dmp`, etc.). ([DIAMOND setup example](https://github.com/MargauxLefebvre/ViroSeek#diamond-and-taxonkit)) |
+| `--taxonkit_dir` | NCBI taxonomy files. | Path to a directory containing the **NCBI taxonomy dump files** required by TaxonKit (`names.dmp`, `nodes.dmp`, etc.). ([DIAMOND setup example](https://github.com/MargauxLefebvre/ViroSeek#diamond-and-taxonkit)) |
 | `--diam_evalue` | `0.001` | Maximum **e-value** for DIAMOND alignment hits. Lower values increase stringency. |
 | `--diam_id` | `0` | Minimum **percent identity** required for DIAMOND hits (0–100). |
 | `--diam_querycov` | `0` | Minimum **query coverage** percentage required for DIAMOND hits. |
@@ -164,17 +163,17 @@ with the `-c' option '/path/to/the/nextflow.config'`.
 To get help run:
 
 ```bash
-nextflow run MargauxLefebvre/ViroSeek -r v0.0.1 --help
+nextflow run MargauxLefebvre/ViroSeek -r v0.0.2 --help
 ```
 
 A typical command might look like the following:
 
 ``` bash
-nextflow run MargauxLefebvre/ViroSeek -r v0.0.1 --input '/path/to/samples.csv' -profile singularity,slurm \
+nextflow run MargauxLefebvre/ViroSeek -r v0.0.2 --input '/path/to/samples.csv' -profile singularity,slurm \
   -work-dir '/your/work_dir/' \
   --outdir '/your/results/dir/' \
   --trim 'trimgalore' \
-  --length_seq 140 --diam_evalue 1e-5 --diam_id 96.0 --diam_querycov 51.0 \
+  --length_seq 140 --diam_evalue 1e-200 --diam_id 96.0 --diam_querycov 51.0 \
   --diam_sensi='--fast'
 ```
 
@@ -182,7 +181,7 @@ nextflow run MargauxLefebvre/ViroSeek -r v0.0.1 --input '/path/to/samples.csv' -
 
 **Note:** 
 
-The command `nextflow run MargauxLefebvre/ViroSeek -r v0.0.1` allows you to run the pipeline directly from the v0.0.1 release without any manual installation (apart from the required dependencies, i.e. Nextflow and a supported container platform; see the [Installation](#installation) section). Nextflow automatically downloads and manages the pipeline code locally.
+The command `nextflow run MargauxLefebvre/ViroSeek -r v0.0.2` allows you to run the pipeline directly from the v0.0.2 release without any manual installation (apart from the required dependencies, i.e. Nextflow and a supported container platform; see the [Installation](#installation) section). Nextflow automatically downloads and manages the pipeline code locally.
 
 Alternatively, you can clone the repository and run the pipeline from a local copy. In this case, the command becomes `nextflow run ViroSeek.nf. Follow the steps below:
 
