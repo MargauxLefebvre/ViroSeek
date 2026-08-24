@@ -160,41 +160,36 @@ workflow {
 // -------------------------------- WORKFLOW STEPS --------------------------------
     // ---- DATABASES
     
-      // ---- check conta sequence
+    // ---- check conta sequence
     if (params.conta_ref) {
-      def found = false
-      
-      if(params.conta_ref.indexOf(',') >= 0) {
-        def conta_list=[]
-                // Cut into list with coma separator
-                str_list = params.conta_ref.tokenize(',')
-                // loop over elements
-                str_list.each {
-                    str_list2 = it.tokenize(' ')
-                    str_list2.each {
-                            if (ViroSeekUtils.is_url(it) ) {
-                                log.info "Download of the contamination sequence files provided (default non-viral ribosomal RNA references (16S/18S and 23S/28S) from the SILVA rRNA database, release 138)"
-                                via_url = true
-                                found = true
-                            }
-                            conta_list.add(it) // use file insted of File for URL
-                    }
-                }
-                prepare_silva_DB_list(conta_list)
-                silva_ref = prepare_silva_DB_list.out.fasta
-            } else {
-      if (ViroSeekUtils.is_url(params.conta_ref)) {
-          found = true
-          log.info "Download of the contamination sequence file provided"
-          prepare_silva_DB()
-          silva_ref = prepare_silva_DB.out.fasta}
-    
-      else if (ViroSeekUtils.resolveFile(params.conta_ref, "conta_ref")) {
-          found = true
-          log.info "Use contamination sequence provided by user."
-          silva_ref = Channel.fromPath(params.conta_ref, checkIfExists: true)}
-       }
-      if (!found) {exit 1, "Error: no contamination sequence file found.\n Please check input file or URL provided.\n "}
+
+        // Parse params
+        def conta_list = params.conta_ref instanceof List ?
+            params.conta_ref.collect { it.toString().trim() } :
+            params.conta_ref.toString().tokenize(',').collect { it.trim() }
+
+        // Validate
+        def invalid_files = conta_list.findAll { ref ->
+            !ViroSeekUtils.is_url(ref) &&
+            !ViroSeekUtils.resolveFile(ref, "conta_ref")
+        }
+
+        if (invalid_files) {
+            exit 1, "Error: contamination sequence file(s) not found:\n${invalid_files.join('\n')}"
+        }
+
+        // Local files are used directly and remote URLs are downloaded.
+        def conta_ch = Channel.fromList(
+            conta_list.collect { ref -> file(ref) }
+        )
+
+        // Group all references into one list
+        conta_ch
+            .collect()
+            .set { conta_files_ch }
+
+        // Concatenate all contamination references
+        silva_ref = prepare_silva_DB(conta_files_ch)
     }
 
 
