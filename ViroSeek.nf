@@ -100,7 +100,7 @@ include {samtools_sam2sortedbam; samtools_markdup; samtools_idxstats} from "$bas
 include {assembly_spades} from "$baseDir/modules/spades.nf"
 include {taxo_table_taxonkit} from "$baseDir/modules/taxonkit.nf"
 include {trim_trimgalore} from "$baseDir/modules/trimgalore.nf"
-include {prepare_silva_DB; prepare_silva_DB_list; dwnload_diamond_DB; dwnload_taxonkit_DB; prepare_viral_accessions; prepare_accession2taxid; subset_diamond_DB; prepare_diamond_DB} from "$baseDir/modules/database.nf"
+include {prepare_silva_DB; dwnload_diamond_DB; dwnload_taxonkit_DB; prepare_viral_accessions; prepare_accession2taxid; subset_diamond_DB; prepare_diamond_DB} from "$baseDir/modules/database.nf"
 
 /*************************************************
 / STEP 4 - MAIN WORKFLOW
