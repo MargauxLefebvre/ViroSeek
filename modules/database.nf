@@ -5,53 +5,24 @@ process prepare_silva_DB {
     label 'wget'
     
     publishDir "${params.outdir}/Database", mode: 'copy'
-
-    output:
-        path("CONTA.fa.gz"), emit: fasta
-
-
-    script:
-    def list_csv = []
-    list_csv = all_csv
-    list_csv_bash = list_csv.join(" "); // remove bracket and replace comma by space to be processed by bash
-        """
-        # Download the references database from https://www.arb-silva.de
-        wget -c ${params.conta_ref} --tries=0 --timeout=30
-        
-        # Merge the database together
-        zcat *.fasta.gz | gzip > CONTA.fa.gz
-        """
-}
-
-/*
- * Process: create the SILVA reference database used for filtering
- */
-process prepare_silva_DB_list {
-    label 'wget'
-    
-    publishDir "${params.outdir}/Database", mode: 'copy'
     
     input:
-        val list_urls
+      path conta_files
 
     output:
-        path("CONTA.fa.gz"), emit: fasta
-
+      path "CONTA.fa.gz", emit: fasta
 
     script:
-    def list_csv = []
-    list_csv = list_urls
-    list_csv_bash = list_csv.join(" "); // remove bracket and replace comma by space to be processed by bash
-        """
-        # Download the references
-        for entry in ${list_csv_bash}; do
-             wget -c \$entry --tries=0 --timeout=30
-        done
-       
-        
-        # Merge the database together
-        zcat *.fasta.gz | gzip > CONTA.fa.gz
-        """
+      """
+      # Concatenate FASTA and FASTA.GZ files
+      for entry in ${conta_files}; do
+          if [[ "\$entry" == *.gz ]]; then
+              zcat "\$entry"
+          else
+              cat "\$entry"
+          fi
+      done | gzip > CONTA.fa.gz
+      """
 }
 
 /*
